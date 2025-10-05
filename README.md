@@ -1,169 +1,163 @@
-# منصة وصلة أكاديمي (Wasla Academy)
+# Wasla Academy Platform
 
-منصة تعليمية شاملة تربط الطلاب بالجامعات والمعاهد والمدربين في اليمن.
+A comprehensive educational platform connecting students with universities, institutes, and trainers across Yemen.
 
-## 📱 عن التطبيق
+## 📱 About the App
 
-وصلة أكاديمي هي منصة تعليمية إلكترونية متكاملة تهدف إلى:
-- ربط الطلاب بمقدمي الخدمات التعليمية (جامعات، معاهد، مدربون)
-- توفير كورسات تعليمية في مختلف المجالات
-- إدارة المحاضرات المباشرة والامتحانات
-- إصدار الشهادات الإلكترونية
-- التواصل بين الطلاب والمدربين
+**Wasla Academy** is an integrated e-learning platform designed to:
+- Connect students with educational service providers (universities, institutes, trainers)
+- Provide online courses across various fields
+- Manage live lectures and exams
+- Issue verified digital certificates
+- Enable communication between students and instructors
 
-## ✨ المميزات
+## ✨ Features
 
-### للطلاب
-- ✅ تصفح الكورسات حسب الفئة والمستوى
-- ✅ التسجيل في الكورسات المجانية والمدفوعة
-- ✅ متابعة التقدم في الدروس
-- ✅ حضور المحاضرات المباشرة
-- ✅ إجراء الامتحانات والحصول على الشهادات
-- ✅ المشاركة في المناقشات
-- ✅ التواصل مع المدربين
+### For Students
+- ✅ Browse courses by category and level  
+- ✅ Enroll in free or paid courses  
+- ✅ Track lesson progress  
+- ✅ Attend live classes  
+- ✅ Take exams and receive certificates  
+- ✅ Participate in discussions  
+- ✅ Chat with instructors  
 
-### لمقدمي الخدمات
-- ✅ إنشاء وإدارة الكورسات
-- ✅ إضافة الدروس والموارد التعليمية
-- ✅ إنشاء الامتحانات
-- ✅ متابعة تقدم الطلاب
-- ✅ إصدار الشهادات
+### For Instructors and Institutions
+- ✅ Create and manage courses  
+- ✅ Add lessons and learning materials  
+- ✅ Create and manage exams  
+- ✅ Monitor student progress  
+- ✅ Issue certificates  
 
-## 🛠️ التقنيات المستخدمة
+## 🛠️ Technologies Used
 
-- **Framework**: Flutter 3.4.3+
-- **State Management**: BLoC Pattern
-- **Database**: Supabase (PostgreSQL)
-- **Storage**: Supabase Storage
-- **Authentication**: Supabase Auth
-- **UI**: Material Design + Custom Components
+- **Framework**: Flutter 3.4.3+  
+- **State Management**: BLoC Pattern  
+- **Database**: Supabase (PostgreSQL)  
+- **Storage**: Supabase Storage  
+- **Authentication**: Supabase Auth  
+- **UI**: Material Design + Custom Widgets  
 
-## 📦 المكتبات الرئيسية
+## 📦 Main Dependencies
 
 ```yaml
 dependencies:
-  flutter_bloc: ^8.1.5          # إدارة الحالة
-  equatable: ^2.0.5             # مقارنة الكائنات
-  flutter_screenutil: ^5.9.0    # التصميم المتجاوب
-  cached_network_image: ^3.3.1  # تخزين الصور مؤقتاً
-  carousel_slider: ^4.2.1       # عرض الشرائح
-  video_player: ^2.9.2          # تشغيل الفيديو
-  intl: ^0.19.0                 # التنسيق والترجمة
+  flutter_bloc: ^8.1.5
+  equatable: ^2.0.5
+  flutter_screenutil: ^5.9.0
+  cached_network_image: ^3.3.1
+  carousel_slider: ^4.2.1
+  video_player: ^2.9.2
+  intl: ^0.19.0
 ```
 
-## 🚀 البدء
+## 🚀 Getting Started
 
-### المتطلبات
+### Requirements
+- Flutter SDK 3.4.3+  
+- Dart SDK 3.0.0+  
+- Android Studio or VS Code  
+- Supabase account (for production)
 
-- Flutter SDK 3.4.3 أو أحدث
-- Dart SDK 3.0.0 أو أحدث
-- Android Studio / VS Code
-- حساب Supabase (للإنتاج)
+### Installation
 
-### التثبيت
-
-1. استنساخ المشروع:
+1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/waslaacademy.git
-cd waslaacademy
+git clone https://github.com/fahm99/wasla_academy-ELearning-platform.git
+cd wasla_academy-ELearning-platform
 ```
 
-2. تثبيت المكتبات:
+2. Install dependencies:
 ```bash
 flutter pub get
 ```
 
-3. تشغيل التطبيق:
+3. Run the app:
 ```bash
 flutter run
 ```
 
-## 🗂️ هيكل المشروع
+## 🗂️ Project Structure
 
 ```
 lib/
 ├── src/
-│   ├── blocs/              # إدارة الحالة (BLoC)
-│   ├── config/             # ملفات التكوين
-│   ├── constants/          # الثوابت والألوان
-│   ├── data/              
-│   │   └── repositories/   # طبقة البيانات
-│   ├── models/             # نماذج البيانات
-│   ├── services/           # الخدمات (API, Storage)
-│   ├── utils/              # أدوات مساعدة
-│   ├── views/              # الشاشات
-│   └── widgets/            # المكونات القابلة لإعادة الاستخدام
+│   ├── blocs/
+│   ├── config/
+│   ├── constants/
+│   ├── data/
+│   │   └── repositories/
+│   ├── models/
+│   ├── services/
+│   ├── utils/
+│   ├── views/
+│   └── widgets/
 └── main.dart
 
 assets/
-├── data/                   # ملفات JSON للبيانات
-└── images/                 # الصور والأيقونات
+├── data/
+└── images/
 ```
 
-## 🔧 التكوين
+## 🔧 Configuration
 
-### 1. إعداد Supabase
+### 1. Setup Supabase
 
-اتبع الخطوات في [دليل الربط مع Supabase](SUPABASE_INTEGRATION_GUIDE.md)
+Follow the steps in [SUPABASE_INTEGRATION_GUIDE.md](SUPABASE_INTEGRATION_GUIDE.md)
 
-### 2. تحديث ملف التكوين
+### 2. Update Supabase Configuration
 
-في `lib/src/config/supabase_config.dart`:
+In `lib/src/config/supabase_config.dart`:
+
 ```dart
 static const String supabaseUrl = 'YOUR_SUPABASE_URL';
 static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
 ```
 
-## 📱 الشاشات المتوفرة
+## 📱 Available Screens
 
-- ✅ شاشة البداية (Splash)
-- ✅ تسجيل الدخول والتسجيل
-- ✅ الصفحة الرئيسية
-- ✅ قائمة الكورسات
-- ✅ تفاصيل الكورس
-- ✅ مشغل الكورس
-- ✅ الامتحانات
-- ✅ الملف الشخصي
-- ✅ الإعدادات
-- ✅ الإشعارات
-- ✅ المحادثات
-- ✅ المناقشات
-- ✅ الإنجازات والشهادات
-- ✅ المحاضرات المباشرة
+- ✅ Splash Screen  
+- ✅ Login & Signup  
+- ✅ Home Page  
+- ✅ Course List  
+- ✅ Course Details  
+- ✅ Course Player  
+- ✅ Exams  
+- ✅ Profile  
+- ✅ Settings  
+- ✅ Notifications  
+- ✅ Chats  
+- ✅ Discussions  
+- ✅ Certificates & Achievements  
+- ✅ Live Lectures  
 
-## 🎨 التصميم
+## 🎨 Design
 
-التطبيق يدعم:
-- ✅ الوضع الفاتح والداكن
-- ✅ اللغة العربية (RTL)
-- ✅ التصميم المتجاوب لجميع أحجام الشاشات
-- ✅ Material Design 3
+- ✅ Light & Dark Mode  
+- ✅ Arabic RTL Support  
+- ✅ Fully Responsive Layout  
+- ✅ Material Design 3  
 
-## 📄 الوثائق
+## 📄 Documentation
 
-- [خطة التطوير الشاملة](DEVELOPMENT_PLAN.md)
-- [دليل الربط مع Supabase](SUPABASE_INTEGRATION_GUIDE.md)
-- [ملخص تكامل HTML](FLUTTER_HTML_INTEGRATION_SUMMARY.md)
+- [Development Plan](DEVELOPMENT_PLAN.md)  
+- [Supabase Integration Guide](SUPABASE_INTEGRATION_GUIDE.md)  
+- [Flutter HTML Integration Summary](FLUTTER_HTML_INTEGRATION_SUMMARY.md)
 
-## 🧪 الاختبار
+## 🧪 Testing
 
 ```bash
-# تشغيل الاختبارات
 flutter test
-
-# فحص الكود
 flutter analyze
-
-# تنسيق الكود
 flutter format .
 ```
 
-## 📦 البناء للإنتاج
+## 📦 Build for Production
 
 ### Android
 ```bash
 flutter build apk --release
-# أو
+# or
 flutter build appbundle --release
 ```
 
@@ -172,29 +166,27 @@ flutter build appbundle --release
 flutter build ios --release
 ```
 
-## 🤝 المساهمة
+## 🤝 Contribution
 
-نرحب بالمساهمات! يرجى:
-1. Fork المشروع
-2. إنشاء فرع للميزة الجديدة
-3. Commit التغييرات
-4. Push إلى الفرع
-5. فتح Pull Request
+We welcome contributions!  
+1. Fork the repository  
+2. Create a feature branch  
+3. Commit your changes  
+4. Push your branch  
+5. Open a Pull Request  
 
-## 📝 الترخيص
+## 📝 License
 
-هذا المشروع مرخص تحت [MIT License](LICENSE)
+This project is licensed under the [MIT License](LICENSE).
 
-## 📞 التواصل
+## 📞 Contact
 
-- الموقع: [waslaacademy.com](https://waslaacademy.com)
-- البريد: info@waslaacademy.com
-- الدعم الفني: support@waslaacademy.com
+- 🌐 Website: [waslaacademy.com](https://waslaacademy.com)  
+- 📧 Email: info@waslaacademy.com  
+- 🛠️ Support: support@waslaacademy.com  
 
-## 🙏 شكر وتقدير
+## 🙏 Acknowledgment
 
-شكراً لجميع المساهمين في هذا المشروع!
+Thanks to everyone contributing to this project!
 
 ---
-
-تم التطوير بـ ❤️ في اليمن
