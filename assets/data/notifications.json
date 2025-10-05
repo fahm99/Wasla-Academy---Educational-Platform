@@ -1,0 +1,49 @@
+{
+  "notifications": [
+    {
+      "id": "1",
+      "title": "كورس جديد متاح",
+      "message": "تم إضافة كورس جديد في البرمجة",
+      "type": "course",
+      "isRead": false,
+      "timestamp": "2025-10-02T10:00:00Z",
+      "actionUrl": "/courses/1"
+    },
+    {
+      "id": "2",
+      "title": "محاضرة مباشرة قريباً",
+      "message": "ستبدأ محاضرة تطوير الويب خلال ساعة",
+      "type": "live_lecture",
+      "isRead": false,
+      "timestamp": "2025-10-02T09:00:00Z",
+      "actionUrl": "/live-lectures/2"
+    },
+    {
+      "id": "3",
+      "title": "تم إصدار شهادتك",
+      "message": "تهانينا! تم إصدار شهادة إتمام كورس Python",
+      "type": "certificate",
+      "isRead": true,
+      "timestamp": "2025-10-01T14:00:00Z",
+      "actionUrl": "/certificates/1"
+    },
+    {
+      "id": "4",
+      "title": "رسالة جديدة",
+      "message": "لديك رسالة جديدة من المدرب",
+      "type": "message",
+      "isRead": false,
+      "timestamp": "2025-10-02T08:30:00Z",
+      "actionUrl": "/conversations/1"
+    },
+    {
+      "id": "5",
+      "title": "تذكير بالامتحان",
+      "message": "امتحان React سيبدأ غداً",
+      "type": "exam",
+      "isRead": true,
+      "timestamp": "2025-10-01T16:00:00Z",
+      "actionUrl": "/exams/2"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "lectures": [
+    {
+      "id": "1",
+      "title": "أساسيات البرمجة بلغة Python",
+      "instructor": "د. أحمد محمد",
+      "instructorAvatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "imageUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800",
+      "startTime": "2025-10-03T10:00:00Z",
+      "endTime": "2025-10-03T12:00:00Z",
+      "isLive": false,
+      "viewersCount": 0,
+      "description": "محاضرة تفاعلية حول أساسيات البرمجة بلغة Python للمبتدئين",
+      "courseId": "1",
+      "streamUrl": "https://example.com/stream/1"
+    },
+    {
+      "id": "2",
+      "title": "تطوير تطبيقات الويب الحديثة",
+      "instructor": "م. سارة أحمد",
+      "instructorAvatar": "https://randomuser.me/api/portraits/women/1.jpg",
+      "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800",
+      "startTime": "2025-10-02T14:00:00Z",
+      "endTime": "2025-10-02T16:00:00Z",
+      "isLive": true,
+      "viewersCount": 245,
+      "description": "محاضرة مباشرة عن تطوير تطبيقات الويب باستخدام React و Node.js",
+      "courseId": "2",
+      "streamUrl": "https://example.com/stream/2"
+    },
+    {
+      "id": "3",
+      "title": "مهارات القيادة الفعالة",
+      "instructor": "د. خالد السعيد",
+      "instructorAvatar": "https://randomuser.me/api/portraits/men/3.jpg",
+      "imageUrl": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800",
+      "startTime": "2025-10-02T16:00:00Z",
+      "endTime": "2025-10-02T17:30:00Z",
+      "isLive": false,
+      "viewersCount": 0,
+      "description": "ورشة عمل تفاعلية حول تطوير مهارات القيادة والتأثير",
+      "courseId": "4",
+      "streamUrl": "https://example.com/stream/3"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "discussions": [
+    {
+      "id": "1",
+      "courseId": 1,
+      "courseName": "مقدمة في برمجة بايثون",
+      "title": "كيف أبدأ في تعلم البرمجة؟",
+      "content": "أنا مبتدئ تماماً في البرمجة، ما هي أفضل طريقة للبدء؟",
+      "author": "محمد علي",
+      "authorAvatar": "https://randomuser.me/api/portraits/men/10.jpg",
+      "timestamp": "2025-10-01T10:00:00Z",
+      "repliesCount": 5,
+      "likesCount": 12,
+      "isLiked": false,
+      "replies": [
+        {
+          "id": "1-1",
+          "author": "سارة أحمد",
+          "authorAvatar": "https://randomuser.me/api/portraits/women/1.jpg",
+          "content": "أنصحك بالبدء بالأساسيات وحل التمارين العملية",
+          "timestamp": "2025-10-01T11:00:00Z",
+          "likesCount": 3
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "courseId": 2,
+      "courseName": "تطوير تطبيقات الويب باستخدام React",
+      "title": "مشكلة في استخدام useState",
+      "content": "أواجه مشكلة في تحديث الحالة باستخدام useState، هل يمكن المساعدة؟",
+      "author": "فاطمة حسن",
+      "authorAvatar": "https://randomuser.me/api/portraits/women/5.jpg",
+      "timestamp": "2025-10-02T09:00:00Z",
+      "repliesCount": 3,
+      "likesCount": 8,
+      "isLiked": true,
+      "replies": []
+    }
+  ]
+}

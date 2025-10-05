@@ -1,0 +1,54 @@
+{
+  "achievements": [
+    {
+      "id": 1,
+      "title": "المبتدئ",
+      "description": "أكمل أول كورس لك",
+      "icon": "🎓",
+      "color": "#3b82f6",
+      "isUnlocked": true,
+      "unlockedDate": "2025-01-15",
+      "progress": 100
+    },
+    {
+      "id": 2,
+      "title": "المتعلم النشط",
+      "description": "أكمل 5 كورسات",
+      "icon": "📚",
+      "color": "#10b981",
+      "isUnlocked": false,
+      "unlockedDate": null,
+      "progress": 20
+    },
+    {
+      "id": 3,
+      "title": "الخبير",
+      "description": "أكمل 10 كورسات",
+      "icon": "🏆",
+      "color": "#f59e0b",
+      "isUnlocked": false,
+      "unlockedDate": null,
+      "progress": 10
+    },
+    {
+      "id": 4,
+      "title": "المتفوق",
+      "description": "احصل على 90% أو أكثر في 3 امتحانات",
+      "icon": "⭐",
+      "color": "#ec4899",
+      "isUnlocked": false,
+      "unlockedDate": null,
+      "progress": 33
+    },
+    {
+      "id": 5,
+      "title": "المشارك النشط",
+      "description": "شارك في 10 مناقشات",
+      "icon": "💬",
+      "color": "#8b5cf6",
+      "isUnlocked": false,
+      "unlockedDate": null,
+      "progress": 30
+    }
+  ]
+}

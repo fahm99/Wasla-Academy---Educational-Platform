@@ -1,0 +1,33 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "أحمد محمد",
+      "email": "ahmed@example.com",
+      "password": "password123",
+      "phone": "0123456789",
+      "avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "enrolledCourses": [1, 3],
+      "completedCourses": [1],
+      "certificates": [
+        {
+          "id": 1,
+          "courseId": 1,
+          "courseName": "مقدمة في برمجة بايثون",
+          "date": "01/01/2023"
+        }
+      ],
+      "exams": [
+        {
+          "id": 1,
+          "courseId": 1,
+          "examId": 1,
+          "title": "امتحان الفصل الأول",
+          "date": "15/01/2023",
+          "score": 85,
+          "status": "completed"
+        }
+      ]
+    }
+  ]
+}
