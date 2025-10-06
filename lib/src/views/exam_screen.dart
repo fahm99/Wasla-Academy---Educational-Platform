@@ -1,450 +1,580 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:waslaacademy/src/blocs/auth/auth_bloc.dart';
 import 'package:waslaacademy/src/constants/app_colors.dart';
-import 'package:waslaacademy/src/data/exam_questions.dart';
+import 'package:waslaacademy/src/constants/app_sizes.dart';
+import 'package:waslaacademy/src/constants/app_text_styles.dart';
 import 'package:waslaacademy/src/models/course.dart';
-import 'package:waslaacademy/src/models/exam_question.dart';
-import 'package:waslaacademy/src/views/course_completion_screen.dart';
-import 'package:waslaacademy/src/widgets/custom_app_bar.dart';
+import 'package:waslaacademy/src/utils/responsive_helper.dart';
 
 class ExamScreen extends StatefulWidget {
-  final Course course;
   final Exam exam;
+  final int courseId;
 
   const ExamScreen({
     super.key,
-    required this.course,
     required this.exam,
+    required this.courseId,
   });
 
   @override
   State<ExamScreen> createState() => _ExamScreenState();
 }
 
-class _ExamScreenState extends State<ExamScreen> {
+class _ExamScreenState extends State<ExamScreen> with TickerProviderStateMixin {
   int _currentQuestionIndex = 0;
-  List<int?> _userAnswers = [];
-  int _timeRemaining = 0; // in seconds
-  late Timer _timer;
-  bool _examSubmitted = false;
-  List<ExamQuestion> _questions = [];
+  final Map<int, int> _selectedAnswers = {};
+  bool _isExamStarted = false;
+  bool _isExamCompleted = false;
+  late AnimationController _timerController;
+  Duration _remainingTime = Duration.zero;
+
+  // Sample questions for demo
+  final List<ExamQuestion> _questions = [
+    ExamQuestion(
+      id: 1,
+      question: 'ما هي لغة البرمجة الأكثر شيوعاً في تطوير تطبيقات الويب؟',
+      options: ['Python', 'JavaScript', 'Java', 'C++'],
+      correctAnswer: 1,
+    ),
+    ExamQuestion(
+      id: 2,
+      question: 'أي من التالي يُستخدم لتصميم واجهات المستخدم في Flutter؟',
+      options: ['Widgets', 'Components', 'Elements', 'Views'],
+      correctAnswer: 0,
+    ),
+    ExamQuestion(
+      id: 3,
+      question: 'ما هو الغرض من استخدام Git في البرمجة؟',
+      options: [
+        'تشغيل التطبيقات',
+        'إدارة قواعد البيانات',
+        'إدارة الإصدارات',
+        'تصميم الواجهات'
+      ],
+      correctAnswer: 2,
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Load questions for this exam
-    _questions = ExamQuestionsData.examQuestions[widget.exam.id] ?? [];
-
-    // Initialize user answers list
-    _userAnswers = List<int?>.filled(_questions.length, null);
-
-    // Set exam time (assuming 1 minute per question)
-    _timeRemaining = _questions.length * 60;
-
-    // Start timer
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_timeRemaining > 0) {
-          _timeRemaining--;
-        } else {
-          // Time is up, auto submit exam
-          _submitExam();
-        }
-      });
-    });
+    _timerController = AnimationController(
+      duration: _parseDuration(widget.exam.duration),
+      vsync: this,
+    );
+    _remainingTime = _parseDuration(widget.exam.duration);
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timerController.dispose();
     super.dispose();
   }
 
-  void _selectAnswer(int optionIndex) {
+  Duration _parseDuration(String duration) {
+    // Parse duration like "30 دقيقة" to Duration
+    final minutes = int.tryParse(duration.split(' ')[0]) ?? 30;
+    return Duration(minutes: minutes);
+  }
+
+  void _startExam() {
     setState(() {
-      _userAnswers[_currentQuestionIndex] = optionIndex;
+      _isExamStarted = true;
+    });
+
+    _timerController.addListener(() {
+      setState(() {
+        _remainingTime = Duration(
+          seconds: (_parseDuration(widget.exam.duration).inSeconds *
+                  (1 - _timerController.value))
+              .round(),
+        );
+      });
+
+      if (_timerController.isCompleted) {
+        _completeExam();
+      }
+    });
+
+    _timerController.forward();
+  }
+
+  void _selectAnswer(int answerIndex) {
+    setState(() {
+      _selectedAnswers[_currentQuestionIndex] = answerIndex;
     });
   }
 
-  void _navigateToQuestion(int index) {
-    setState(() {
-      _currentQuestionIndex = index;
-    });
+  void _nextQuestion() {
+    if (_currentQuestionIndex < _questions.length - 1) {
+      setState(() {
+        _currentQuestionIndex++;
+      });
+    }
   }
 
-  void _submitExam() {
-    _timer.cancel();
-    _examSubmitted = true;
+  void _previousQuestion() {
+    if (_currentQuestionIndex > 0) {
+      setState(() {
+        _currentQuestionIndex--;
+      });
+    }
+  }
+
+  void _completeExam() {
+    _timerController.stop();
 
     // Calculate score
     int correctAnswers = 0;
     for (int i = 0; i < _questions.length; i++) {
-      if (_userAnswers[i] == _questions[i].correctAnswer) {
+      if (_selectedAnswers[i] == _questions[i].correctAnswer) {
         correctAnswers++;
       }
     }
 
-    int score = ((_questions.isNotEmpty)
-            ? (correctAnswers / _questions.length) * 100
-            : 0)
-        .toInt();
+    final score = ((correctAnswers / _questions.length) * 100).round();
 
-    // Show result
-    _showExamResult(score);
+    setState(() {
+      _isExamCompleted = true;
+    });
+
+    // Show results dialog
+    _showResultsDialog(score, correctAnswers);
   }
 
-  void _showExamResult(int score) {
-    bool passed = score >= 70;
-
+  void _showResultsDialog(int score, int correctAnswers) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            passed ? 'مبروك! اجتزت الامتحان' : 'لم تنجح في الامتحان',
-            style: TextStyle(
-              color: passed ? AppColors.success : AppColors.danger,
-            ),
-          ),
-          content: LayoutBuilder(builder: (context, constraints) {
-            final isTablet = constraints.maxWidth > 600;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'النتيجة: $score%',
-                  style: TextStyle(
-                    fontSize: isTablet ? 20.sp : 16.sp,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'نتائج الامتحان',
+          style: AppTextStyles.headline2(context),
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: score >= 60 ? AppColors.success : AppColors.danger,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$score%',
+                  style: AppTextStyles.headline1(context).copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                SizedBox(height: isTablet ? 20.h : 16.h),
-                LinearProgressIndicator(
-                  value: score / 100,
-                  backgroundColor: AppColors.light,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    passed ? AppColors.success : AppColors.danger,
-                  ),
-                ),
-                SizedBox(height: isTablet ? 20.h : 16.h),
-                Text(
-                  passed
-                      ? 'لقد اجتزت الامتحان بنجاح!'
-                      : 'يرجى إعادة الدراسة والمحاولة مرة أخرى',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isTablet ? 18.sp : 14.sp,
-                  ),
-                ),
-              ],
-            );
-          }),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (passed) {
-                  // Check if course is completed
-                  _checkCourseCompletion();
-                }
-              },
-              child: Text(
-                passed ? 'متابعة' : 'إغلاق',
-                style: TextStyle(
-                  fontSize: 16.sp,
                 ),
               ),
             ),
+            const SizedBox(height: AppSizes.spaceLarge),
+            Text(
+              score >= 60
+                  ? 'مبروك! لقد نجحت في الامتحان'
+                  : 'للأسف، لم تحصل على الدرجة المطلوبة',
+              style: AppTextStyles.bodyLarge(context),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.spaceMedium),
+            Text(
+              'الإجابات الصحيحة: $correctAnswers من ${_questions.length}',
+              style: AppTextStyles.bodyMedium(context).copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
-        );
-      },
-    );
-  }
-
-  void _checkCourseCompletion() {
-    // In a real app, this would check if all lessons and exams are completed
-    // For demo, we'll just navigate to course completion screen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CourseCompletionScreen(
-          courseName: widget.course.title,
-          studentName: 'أحمد محمد', // This should come from user data
         ),
+        actions: [
+          if (score < 60)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _resetExam();
+              },
+              child: Text(
+                'إعادة المحاولة',
+                style: AppTextStyles.buttonMedium(context).copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Go back to course player
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'العودة للكورس',
+              style: AppTextStyles.buttonMedium(context),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  String _formatTime(int seconds) {
-    int minutes = seconds ~/ 60;
-    int remainingSeconds = seconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  void _resetExam() {
+    setState(() {
+      _currentQuestionIndex = 0;
+      _selectedAnswers.clear();
+      _isExamStarted = false;
+      _isExamCompleted = false;
+      _remainingTime = _parseDuration(widget.exam.duration);
+    });
+    _timerController.reset();
+  }
+
+  String _formatTime(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    return '${twoDigits(minutes)}:${twoDigits(seconds)}';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_questions.isEmpty) {
-      return Scaffold(
-        appBar: CustomAppBar(
-          title: widget.exam.title,
-          onBack: () => Navigator.pop(context),
-        ),
-        body: const Center(
-          child: Text('لا توجد أسئلة متاحة لهذا الامتحان'),
-        ),
-      );
+    if (!_isExamStarted) {
+      return _buildExamIntro();
     }
 
-    final currentQuestion = _questions[_currentQuestionIndex];
+    if (_isExamCompleted) {
+      return _buildExamCompleted();
+    }
 
+    return _buildExamContent();
+  }
+
+  Widget _buildExamIntro() {
     return Scaffold(
-      appBar: CustomAppBar(
-        title: widget.exam.title,
-        onBack: () {
-          // Confirm before exiting
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('تأكيد الخروج'),
-                content:
-                    const Text('هل أنت متأكد أنك تريد الخروج من الامتحان؟'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('إلغاء'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('خروج'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
+      appBar: AppBar(
+        title: Text(widget.exam.title),
       ),
-      body: LayoutBuilder(builder: (context, constraints) {
-        final isTablet = constraints.maxWidth > 600;
-        return Column(
+      body: Padding(
+        padding: ResponsiveHelper.getScreenPadding(context),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Exam header with timer
+            const Icon(
+              Icons.quiz,
+              size: 80,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: AppSizes.spaceLarge),
+            Text(
+              widget.exam.title,
+              style: AppTextStyles.headline1(context),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.spaceLarge),
+            _buildInfoCard('عدد الأسئلة', '${widget.exam.questions} سؤال'),
+            const SizedBox(height: AppSizes.spaceSmall),
+            _buildInfoCard('المدة المحددة', widget.exam.duration),
+            const SizedBox(height: AppSizes.spaceSmall),
+            _buildInfoCard('نوع الامتحان',
+                widget.exam.type == 'mcq' ? 'اختيار من متعدد' : 'مقالي'),
+            const SizedBox(height: AppSizes.spaceLarge),
             Container(
-              padding: EdgeInsets.all(isTablet ? 20.w : 16.w),
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
+              padding: const EdgeInsets.all(AppSizes.spaceMedium),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: AppColors.warning,
+                    size: AppSizes.iconLarge,
+                  ),
+                  const SizedBox(height: AppSizes.spaceSmall),
                   Text(
-                    'السؤال ${_currentQuestionIndex + 1} من ${_questions.length}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isTablet ? 18.sp : 14.sp,
-                      fontWeight: FontWeight.bold,
+                    'تعليمات مهمة',
+                    style: AppTextStyles.labelLarge(context).copyWith(
+                      color: AppColors.warning,
                     ),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isTablet ? 16.w : 12.w,
-                      vertical: isTablet ? 8.h : 6.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Text(
-                      _formatTime(_timeRemaining),
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: isTablet ? 18.sp : 14.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  const SizedBox(height: AppSizes.spaceSmall),
+                  Text(
+                    '• يجب الإجابة على جميع الأسئلة\n• لا يمكن العودة بعد انتهاء الوقت\n• الدرجة المطلوبة للنجاح 60%',
+                    style: AppTextStyles.bodyMedium(context),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            // Progress indicator
-            LinearProgressIndicator(
-              value: (_currentQuestionIndex + 1) / _questions.length,
-              backgroundColor: AppColors.light,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-            // Question content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(isTablet ? 24.w : 16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      currentQuestion.text,
-                      style: TextStyle(
-                        fontSize: isTablet ? 22.sp : 18.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: isTablet ? 32.h : 24.h),
-                    // Answer options
-                    ...currentQuestion.options.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final option = entry.value;
-                      final isSelected =
-                          _userAnswers[_currentQuestionIndex] == index;
-                      return Container(
-                        margin: EdgeInsets.only(bottom: isTablet ? 16.h : 12.h),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary.withOpacity(0.1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12.r),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.grey[300]!,
-                          ),
-                        ),
-                        child: RadioListTile<int>(
-                          title: Text(
-                            option,
-                            style: TextStyle(
-                              fontSize: isTablet ? 18.sp : 16.sp,
-                            ),
-                          ),
-                          value: index,
-                          groupValue: _userAnswers[_currentQuestionIndex],
-                          onChanged: (value) {
-                            _selectAnswer(value!);
-                          },
-                          activeColor: AppColors.primary,
-                        ),
-                      );
-                    }),
-                  ],
+            const SizedBox(height: AppSizes.spaceLarge),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _startExam,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSizes.spaceLarge),
+                ),
+                child: Text(
+                  'بدء الامتحان',
+                  style: AppTextStyles.buttonLarge(context),
                 ),
               ),
             ),
-            // Navigation buttons
-            Container(
-              padding: EdgeInsets.all(isTablet ? 20.w : 16.w),
-              child: Row(
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, String value) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spaceMedium),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: AppColors.light),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.bodyLarge(context).copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: AppTextStyles.labelLarge(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExamContent() {
+    final currentQuestion = _questions[_currentQuestionIndex];
+
+    return Scaffold(
+      appBar: AppBar(
+        title:
+            Text('السؤال ${_currentQuestionIndex + 1} من ${_questions.length}'),
+        actions: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.spaceMedium,
+              vertical: AppSizes.spaceSmall,
+            ),
+            margin: const EdgeInsets.only(right: AppSizes.spaceMedium),
+            decoration: BoxDecoration(
+              color: _remainingTime.inMinutes < 5
+                  ? AppColors.danger
+                  : AppColors.primary,
+              borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+            ),
+            child: Text(
+              _formatTime(_remainingTime),
+              style: AppTextStyles.labelMedium(context).copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Progress indicator
+          LinearProgressIndicator(
+            value: (_currentQuestionIndex + 1) / _questions.length,
+            backgroundColor: AppColors.light,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+
+          Expanded(
+            child: Padding(
+              padding: ResponsiveHelper.getScreenPadding(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_currentQuestionIndex > 0) ...[
-                    ElevatedButton(
-                      onPressed: () {
-                        _navigateToQuestion(_currentQuestionIndex - 1);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isTablet ? 24.w : 16.w,
-                          vertical: isTablet ? 16.h : 12.h,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text(
-                        'السابق',
-                        style: TextStyle(
-                          fontSize: isTablet ? 18.sp : 14.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  if (_currentQuestionIndex < _questions.length - 1) ...[
-                    ElevatedButton(
-                      onPressed: () {
-                        _navigateToQuestion(_currentQuestionIndex + 1);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isTablet ? 24.w : 16.w,
-                          vertical: isTablet ? 16.h : 12.h,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text(
-                        'التالي',
-                        style: TextStyle(
-                          fontSize: isTablet ? 18.sp : 14.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    ElevatedButton(
-                      onPressed: () {
-                        // Confirm before submitting
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: const Text('تأكيد الإرسال'),
-                              content: const Text(
-                                  'هل أنت متأكد أنك تريد إرسال الإجابات؟'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('إلغاء'),
+                  const SizedBox(height: AppSizes.spaceLarge),
+
+                  // Question
+                  Text(
+                    currentQuestion.question,
+                    style: AppTextStyles.headline2(context),
+                  ),
+
+                  const SizedBox(height: AppSizes.spaceLarge),
+
+                  // Options
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: currentQuestion.options.length,
+                      itemBuilder: (context, index) {
+                        final isSelected =
+                            _selectedAnswers[_currentQuestionIndex] == index;
+
+                        return Container(
+                          margin: const EdgeInsets.only(
+                              bottom: AppSizes.spaceSmall),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _selectAnswer(index),
+                              borderRadius:
+                                  BorderRadius.circular(AppSizes.radiusMedium),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.all(AppSizes.spaceMedium),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primary.withOpacity(0.1)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(
+                                      AppSizes.radiusMedium),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.light,
+                                    width: isSelected ? 2 : 1,
+                                  ),
                                 ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                    _submitExam();
-                                  },
-                                  child: const Text('إرسال'),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : Colors.transparent,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : AppColors.textLight,
+                                        ),
+                                      ),
+                                      child: isSelected
+                                          ? const Icon(
+                                              Icons.check,
+                                              size: 16,
+                                              color: Colors.white,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: AppSizes.spaceMedium),
+                                    Expanded(
+                                      child: Text(
+                                        currentQuestion.options[index],
+                                        style: AppTextStyles.bodyLarge(context)
+                                            .copyWith(
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            );
-                          },
+                              ),
+                            ),
+                          ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isTablet ? 24.w : 16.w,
-                          vertical: isTablet ? 16.h : 12.h,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text(
-                        'إرسال الإجابات',
-                        style: TextStyle(
-                          fontSize: isTablet ? 18.sp : 14.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-          ],
-        );
-      }),
+          ),
+
+          // Navigation buttons
+          Container(
+            padding: ResponsiveHelper.getScreenPadding(context),
+            child: Row(
+              children: [
+                if (_currentQuestionIndex > 0)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _previousQuestion,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSizes.spaceMedium),
+                      ),
+                      child: Text(
+                        'السابق',
+                        style: AppTextStyles.buttonMedium(context).copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_currentQuestionIndex > 0)
+                  const SizedBox(width: AppSizes.spaceMedium),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        _selectedAnswers.containsKey(_currentQuestionIndex)
+                            ? (_currentQuestionIndex < _questions.length - 1
+                                ? _nextQuestion
+                                : _completeExam)
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppSizes.spaceMedium),
+                    ),
+                    child: Text(
+                      _currentQuestionIndex < _questions.length - 1
+                          ? 'التالي'
+                          : 'إنهاء الامتحان',
+                      style: AppTextStyles.buttonMedium(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _buildExamCompleted() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تم إنهاء الامتحان'),
+      ),
+      body: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+}
+
+class ExamQuestion {
+  final int id;
+  final String question;
+  final List<String> options;
+  final int correctAnswer;
+
+  ExamQuestion({
+    required this.id,
+    required this.question,
+    required this.options,
+    required this.correctAnswer,
+  });
 }

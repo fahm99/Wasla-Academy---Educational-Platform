@@ -36,6 +36,8 @@ class RegisterRequested extends AuthEvent {
 
 class LogoutRequested extends AuthEvent {}
 
+class LoadUserFromStorage extends AuthEvent {}
+
 class UpdateUserProgress extends AuthEvent {
   final List<int>? enrolledCourses;
   final List<int>? completedCourses;

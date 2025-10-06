@@ -11,11 +11,12 @@ import 'package:waslaacademy/src/views/main_screen.dart';
 import 'package:waslaacademy/src/views/home_screen.dart';
 import 'package:waslaacademy/src/views/notifications_screen.dart';
 import 'package:waslaacademy/src/views/certificates_screen.dart';
-import 'package:waslaacademy/src/views/live_lectures_screen.dart';
 import 'package:waslaacademy/src/views/about_screen.dart';
 import 'package:waslaacademy/src/views/contact_screen.dart';
 import 'package:waslaacademy/src/constants/app_colors.dart';
 import 'package:waslaacademy/src/constants/app_theme.dart';
+import 'package:waslaacademy/src/providers/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,85 +30,107 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  late AuthBloc authBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    authBloc = AuthBloc();
+  }
+
+  @override
+  void dispose() {
+    authBloc.close();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiProvider(
       providers: [
-        BlocProvider(
-          create: (context) => AuthBloc(),
-        ),
-        BlocProvider(
-          create: (context) => CourseBloc(),
-        ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: ScreenUtilInit(
-        designSize: const Size(375, 812),
-        minTextAdapt: true,
-        splitScreenMode: true,
-        useInheritedMediaQuery: true,
-        rebuildFactor: RebuildFactors.change,
-        ensureScreenSize: true,
-        builder: (context, child) {
-          return MaterialApp(
-            title: 'منصة وصلة أكاديمي (Wasla Academy)',
-            theme: AppTheme.theme,
-            locale: const Locale('ar'),
-            supportedLocales: const [
-              Locale('ar', ''),
-              Locale('en', ''),
-            ],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            builder: (context, child) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: child!,
-              );
-            },
-            routes: {
-              '/': (context) => const AuthWrapper(),
-              '/main': (context) {
-                final args = ModalRoute.of(context)?.settings.arguments
-                    as Map<String, dynamic>?;
-                return MainScreen(initialTab: args?['initialTab']);
-              },
-              '/home': (context) => const HomeScreen(),
-              '/courses': (context) => const HomeScreen(),
-              '/notifications': (context) => const NotificationsScreen(),
-              '/certificates': (context) => const CertificatesScreen(),
-              '/live-lectures': (context) => const LiveLecturesScreen(),
-              '/about': (context) => const AboutScreen(),
-              '/contact': (context) => const ContactScreen(),
-              '/login': (context) => BlocProvider.value(
-                    value: context.read<AuthBloc>(),
-                    child: LoginScreen(
-                      onRegisterTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RegisterScreen(
-                              onLoginTap: () {
-                                Navigator.pop(context);
-                              },
-                              onRegisterSuccess: () {
-                                // Handle registration success
-                              },
-                            ),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: authBloc),
+          BlocProvider(
+              create: (context) =>
+                  CourseBloc(authBloc: context.read<AuthBloc>())),
+        ],
+        child: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return ScreenUtilInit(
+              designSize: const Size(375, 812),
+              minTextAdapt: true,
+              splitScreenMode: true,
+              useInheritedMediaQuery: true,
+              rebuildFactor: RebuildFactors.change,
+              ensureScreenSize: true,
+              builder: (context, child) {
+                return MaterialApp(
+                  title: 'منصة وصلة أكاديمي (Wasla Academy)',
+                  theme: AppTheme.theme,
+                  darkTheme: AppTheme.darkTheme,
+                  themeMode: themeProvider.themeMode,
+                  locale: const Locale('ar'),
+                  supportedLocales: const [
+                    Locale('ar', ''),
+                    Locale('en', ''),
+                  ],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  builder: (context, child) {
+                    return Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: child!,
+                    );
+                  },
+                  routes: {
+                    '/': (context) => const AuthWrapper(),
+                    '/main': (context) {
+                      final args = ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>?;
+                      return MainScreen(initialTab: args?['initialTab']);
+                    },
+                    '/home': (context) => const HomeScreen(),
+                    '/courses': (context) => const HomeScreen(),
+                    '/notifications': (context) => const NotificationsScreen(),
+                    '/certificates': (context) => const CertificatesScreen(),
+                    '/about': (context) => const AboutScreen(),
+                    '/contact': (context) => const ContactScreen(),
+                    '/login': (context) => BlocProvider.value(
+                          value: context.read<AuthBloc>(),
+                          child: LoginScreen(
+                            onRegisterTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterScreen(
+                                    onLoginTap: () {
+                                      Navigator.pop(context);
+                                    },
+                                    onRegisterSuccess: () {
+                                      // Handle registration success
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                            onLoginSuccess: () {
+                              // Handle login success
+                            },
                           ),
-                        );
-                      },
-                      onLoginSuccess: () {
-                        // Handle login success
-                      },
-                    ),
-                  ),
-            },
-            debugShowCheckedModeBanner: false,
-          );
-        },
+                        ),
+                  },
+                  debugShowCheckedModeBanner: false,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -123,13 +146,27 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _showSplash = true;
   bool _isLoggedIn = false;
+  bool _isStorageChecked = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Initialize services here
-      // For example: ServiceLocator.setup();
+      _initializeApp();
+    });
+  }
+
+  void _initializeApp() async {
+    // Load user from local storage
+    _loadUserFromStorage();
+  }
+
+  void _loadUserFromStorage() async {
+    final authBloc = context.read<AuthBloc>();
+    authBloc.add(LoadUserFromStorage());
+
+    setState(() {
+      _isStorageChecked = true;
     });
   }
 
@@ -151,35 +188,47 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return SplashScreen(onSplashFinished: _navigateFromSplash);
     }
 
-    if (!_isLoggedIn) {
-      return BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthSuccess) {
-            _onLoginSuccess();
-          }
-        },
-        child: LoginScreen(
-          onRegisterTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RegisterScreen(
-                  onLoginTap: () {
-                    Navigator.pop(context);
-                  },
-                  onRegisterSuccess: _onLoginSuccess,
-                ),
-              ),
-            );
-          },
-          onLoginSuccess: _onLoginSuccess,
+    if (!_isStorageChecked) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    return KeyedSubtree(
-      key: ValueKey(_isLoggedIn),
-      child: const MainScreen(),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthSuccess) {
+          setState(() {
+            _isLoggedIn = true;
+          });
+        } else if (state is AuthInitial) {
+          setState(() {
+            _isLoggedIn = false;
+          });
+        }
+      },
+      child: _isLoggedIn
+          ? KeyedSubtree(
+              key: ValueKey(_isLoggedIn),
+              child: const MainScreen(),
+            )
+          : LoginScreen(
+              onRegisterTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RegisterScreen(
+                      onLoginTap: () {
+                        Navigator.pop(context);
+                      },
+                      onRegisterSuccess: _onLoginSuccess,
+                    ),
+                  ),
+                );
+              },
+              onLoginSuccess: _onLoginSuccess,
+            ),
     );
   }
 }

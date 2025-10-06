@@ -43,11 +43,11 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
+              content: const Row(
                 children: [
-                  const Icon(Icons.celebration, color: Colors.white),
-                  const SizedBox(width: AppSizes.spaceSmall),
-                  const Expanded(
+                  Icon(Icons.celebration, color: Colors.white),
+                  SizedBox(width: AppSizes.spaceSmall),
+                  Expanded(
                     child: Text('مرحباً بك في رحلة التعلم! ابدأ أول درس الآن'),
                   ),
                 ],

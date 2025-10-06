@@ -278,7 +278,7 @@ class _CourseContentScreenState extends State<CourseContentScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ExamScreen(
-                              course: _course!,
+                              courseId: _course!.id,
                               exam: exam,
                             ),
                           ),

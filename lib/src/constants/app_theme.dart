@@ -126,6 +126,115 @@ class AppTheme {
     );
   }
 
+  // Dark theme
+  static ThemeData get darkTheme {
+    return ThemeData(
+      primaryColor: darkBlue,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      fontFamily: 'Segoe UI',
+      // شريط التطبيق
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF1E1E1E),
+        foregroundColor: yellow,
+        elevation: 2,
+        shadowColor: Colors.black12,
+        titleTextStyle: TextStyle(
+          color: yellow,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      // البطاقات
+      cardTheme: CardTheme(
+        color: const Color(0xFF1E1E1E),
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      // الأزرار
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: yellow,
+          foregroundColor: darkBlue,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
+      // حقول الإدخال
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: darkGray),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: yellow, width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+        labelStyle: const TextStyle(
+          color: Colors.white70,
+          fontWeight: FontWeight.w600,
+        ),
+        fillColor: const Color(0xFF2D2D2D),
+        filled: true,
+      ),
+
+      // النصوص
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          color: yellow,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          color: yellow,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineSmall: TextStyle(
+          color: yellow,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        bodyLarge: TextStyle(
+          color: Colors.white70,
+          fontSize: 16,
+        ),
+        bodyMedium: TextStyle(
+          color: Colors.white60,
+          fontSize: 14,
+        ),
+        bodySmall: TextStyle(
+          color: Colors.white54,
+          fontSize: 12,
+        ),
+      ),
+
+      // الشريط السفلي
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        selectedItemColor: yellow,
+        unselectedItemColor: Colors.white60,
+        type: BottomNavigationBarType.fixed,
+        elevation: 10,
+      ),
+
+      // الأيقونات
+      iconTheme: const IconThemeData(
+        color: yellow,
+      ),
+    );
+  }
+
   // أنماط مخصصة للبطاقات الإحصائية
   static BoxDecoration statCardDecoration = BoxDecoration(
     color: white,

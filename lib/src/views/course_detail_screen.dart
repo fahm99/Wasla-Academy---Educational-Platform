@@ -91,10 +91,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         ),
       );
 
-      // Simulate enrollment process
-      Future.delayed(const Duration(seconds: 1), () {
-        context.read<CourseBloc>().add(EnrollCourse(courseId: _course!.id));
+      // Enroll user in course
+      context.read<CourseBloc>().add(EnrollCourse(courseId: _course!.id));
 
+      // Show success message after a short delay to allow enrollment to process
+      Future.delayed(const Duration(seconds: 2), () {
         Navigator.of(context).pop(); // Close loading dialog
 
         // Show success message
@@ -117,6 +118,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             ),
           ),
         );
+
+        // Refresh the UI to show enrolled state
+        setState(() {});
 
         // Navigate to main screen with learning tab selected after a short delay
         Future.delayed(const Duration(seconds: 1), () {

@@ -5,7 +5,6 @@ import 'package:waslaacademy/src/constants/app_colors.dart';
 import 'package:waslaacademy/src/constants/app_sizes.dart';
 import 'package:waslaacademy/src/constants/app_text_styles.dart';
 import 'package:waslaacademy/src/models/course.dart';
-import 'package:waslaacademy/src/views/course_player_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Course course;
@@ -69,6 +68,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       Navigator.of(context).pop(); // Close loading dialog
 
+      // Enroll user in course
+      context.read<CourseBloc>().add(EnrollCourse(courseId: widget.course.id));
+
       // Show success dialog
       showDialog(
         context: context,
@@ -84,11 +86,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 Navigator.of(context).pop(); // Close dialog
                 Navigator.of(context).pop(); // Close payment screen
                 Navigator.of(context).pop(); // Close course detail screen
-
-                // Enroll user in course
-                context
-                    .read<CourseBloc>()
-                    .add(EnrollCourse(courseId: widget.course.id));
 
                 // Navigate to main screen with learning tab selected
                 Navigator.pushNamedAndRemoveUntil(
@@ -199,8 +196,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     _buildPaymentMethodOption(
                       context,
                       icon: Icons.paypal,
-                      title: 'بايبال',
-                      subtitle: 'الدفع عبر بايبال',
+                      title: 'PayPal',
+                      subtitle: 'الدفع عبر PayPal',
                       index: 2,
                     ),
                   ],
@@ -209,7 +206,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
               const SizedBox(height: AppSizes.spaceXXLarge),
 
-              // Payment Details Form
+              // Payment Form
               if (_selectedPaymentMethod == 0) ...[
                 Text(
                   'تفاصيل البطاقة',
@@ -221,42 +218,65 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    border: Border.all(color: AppColors.light),
                   ),
                   child: Column(
                     children: [
-                      _buildTextField(
+                      // Card Number
+                      TextField(
                         controller: _cardNumberController,
-                        label: 'رقم البطاقة',
-                        hint: '1234 5678 9012 3456',
+                        decoration: const InputDecoration(
+                          labelText: 'رقم البطاقة',
+                          hintText: '1234 5678 9012 3456',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.credit_card),
+                        ),
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: AppSizes.spaceMedium),
+
+                      // Expiry Date and CVV
                       Row(
                         children: [
                           Expanded(
-                            child: _buildTextField(
+                            child: TextField(
                               controller: _expiryDateController,
-                              label: 'تاريخ الانتهاء',
-                              hint: 'MM/YY',
-                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'تاريخ الانتهاء',
+                                hintText: 'MM/YY',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.date_range),
+                              ),
+                              keyboardType: TextInputType.datetime,
                             ),
                           ),
                           const SizedBox(width: AppSizes.spaceMedium),
                           Expanded(
-                            child: _buildTextField(
+                            child: TextField(
                               controller: _cvvController,
-                              label: 'CVV',
-                              hint: '123',
+                              decoration: const InputDecoration(
+                                labelText: 'CVV',
+                                hintText: '123',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.lock),
+                              ),
                               keyboardType: TextInputType.number,
+                              obscureText: true,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppSizes.spaceMedium),
-                      _buildTextField(
+
+                      // Card Holder Name
+                      TextField(
                         controller: _cardHolderController,
-                        label: 'اسم حامل البطاقة',
-                        hint: 'كما يظهر على البطاقة',
+                        decoration: const InputDecoration(
+                          labelText: 'اسم حامل البطاقة',
+                          hintText: 'أحمد محمد',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                        ),
                       ),
                     ],
                   ),
@@ -275,36 +295,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         _termsAccepted = value ?? false;
                       });
                     },
-                    activeColor: AppColors.primary,
                   ),
                   Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'أوافق على ',
-                            style: AppTextStyles.bodyMedium(context),
-                          ),
-                          TextSpan(
-                            text: 'الشروط والأحكام',
-                            style: AppTextStyles.bodyMedium(context).copyWith(
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' و',
-                            style: AppTextStyles.bodyMedium(context),
-                          ),
-                          TextSpan(
-                            text: 'سياسة الخصوصية',
-                            style: AppTextStyles.bodyMedium(context).copyWith(
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: Text(
+                      'أوافق على الشروط والأحكام وسياسة الخصوصية',
+                      style: AppTextStyles.bodyLarge(context),
                     ),
                   ),
                 ],
@@ -315,11 +310,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
               // Pay Button
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: AppSizes
+                    .buttonHeight, // Use AppSizes directly instead of ResponsiveHelper
                 child: ElevatedButton(
                   onPressed: _completePayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppSizes.radiusMedium),
@@ -328,9 +325,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                   child: Text(
                     'دفع ${widget.course.price} ر.س',
-                    style: AppTextStyles.buttonLarge(context).copyWith(
-                      color: Colors.white,
-                    ),
+                    style: AppTextStyles.buttonLarge(context),
                   ),
                 ),
               ),
@@ -348,62 +343,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
     required String subtitle,
     required int index,
   }) {
-    return RadioListTile<int>(
-      value: index,
-      groupValue: _selectedPaymentMethod,
-      onChanged: (value) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.primary),
+      title: Text(title, style: AppTextStyles.labelLarge(context)),
+      subtitle: Text(subtitle, style: AppTextStyles.bodySmall(context)),
+      trailing: Radio<int>(
+        value: index,
+        groupValue: _selectedPaymentMethod,
+        onChanged: (value) {
+          setState(() {
+            _selectedPaymentMethod = value ?? 0;
+          });
+        },
+      ),
+      onTap: () {
         setState(() {
-          _selectedPaymentMethod = value ?? 0;
+          _selectedPaymentMethod = index;
         });
       },
-      title: Text(
-        title,
-        style: AppTextStyles.labelLarge(context),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTextStyles.bodyMedium(context).copyWith(
-          color: AppColors.textSecondary,
-        ),
-      ),
-      secondary: Icon(
-        icon,
-        color: AppColors.primary,
-      ),
-      activeColor: AppColors.primary,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spaceLarge,
-        vertical: AppSizes.spaceSmall,
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.labelMedium(context),
-        ),
-        const SizedBox(height: AppSizes.spaceXSmall),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-            ),
-            contentPadding: const EdgeInsets.all(AppSizes.spaceMedium),
-          ),
-          keyboardType: keyboardType,
-        ),
-      ],
     );
   }
 }

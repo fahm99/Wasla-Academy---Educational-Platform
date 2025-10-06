@@ -8,7 +8,6 @@ import 'package:waslaacademy/src/views/my_courses_screen.dart';
 import 'package:waslaacademy/src/views/notifications_screen.dart';
 import 'package:waslaacademy/src/views/certificates_screen.dart';
 import 'package:waslaacademy/src/views/advanced_search_screen.dart';
-import 'package:waslaacademy/src/views/live_lectures_screen.dart';
 import 'package:waslaacademy/src/views/settings_screen.dart';
 import 'package:waslaacademy/src/views/help_screen.dart';
 import 'package:waslaacademy/src/views/about_screen.dart';
@@ -168,21 +167,6 @@ class IntegratedDrawer extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const MyCoursesScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.live_tv_outlined,
-                  title: 'المحاضرات المباشرة',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LiveLecturesScreen(),
                       ),
                     );
                   },

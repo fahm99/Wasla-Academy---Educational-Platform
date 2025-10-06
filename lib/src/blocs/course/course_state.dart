@@ -38,6 +38,15 @@ class CourseEnrolled extends CourseState {
   List<Object> get props => [courseId];
 }
 
+class CourseCompleted extends CourseState {
+  final int courseId;
+
+  const CourseCompleted({required this.courseId});
+
+  @override
+  List<Object> get props => [courseId];
+}
+
 class CourseError extends CourseState {
   final String message;
 

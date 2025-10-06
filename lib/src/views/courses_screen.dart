@@ -152,7 +152,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.light,
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'الكورسات',
       ),
       body: SafeArea(

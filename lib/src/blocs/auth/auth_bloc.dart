@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:waslaacademy/src/models/user.dart';
 import 'package:waslaacademy/src/data/test_users.dart';
+import 'package:waslaacademy/src/services/local_storage_service.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -13,6 +14,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<UpdateUserProgress>(_onUpdateUserProgress);
+    on<LoadUserFromStorage>(_onLoadUserFromStorage);
   }
 
   void _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
@@ -55,6 +57,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           ],
         );
 
+        // Save user to local storage
+        final localStorage = await LocalStorageService.getInstance();
+        await localStorage.saveUser(user);
+
         emit(AuthSuccess(user: user));
       } else {
         emit(const AuthFailure(
@@ -93,13 +99,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         exams: const [],
       );
 
+      // Save user to local storage
+      final localStorage = await LocalStorageService.getInstance();
+      await localStorage.saveUser(user);
+
       emit(AuthSuccess(user: user));
     } catch (e) {
       emit(const AuthFailure(message: "فشل في إنشاء الحساب"));
     }
   }
 
-  void _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) {
+  void _onLogoutRequested(
+      LogoutRequested event, Emitter<AuthState> emit) async {
+    // Clear user data from local storage
+    final localStorage = await LocalStorageService.getInstance();
+    await localStorage.clearAll();
+
     emit(AuthInitial());
   }
 
@@ -117,7 +132,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         exams: event.exams ?? currentUser.exams,
       );
 
+      // Save updated user to local storage
       emit(AuthSuccess(user: updatedUser));
+
+      // Save to local storage in the background
+      LocalStorageService.getInstance().then((localStorage) {
+        localStorage.saveUser(updatedUser);
+      });
+    }
+  }
+
+  void _onLoadUserFromStorage(
+      LoadUserFromStorage event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final localStorage = await LocalStorageService.getInstance();
+      final user = await localStorage.getUser();
+
+      if (user != null) {
+        emit(AuthSuccess(user: user));
+      } else {
+        emit(AuthInitial());
+      }
+    } catch (e) {
+      emit(AuthInitial());
     }
   }
 }
