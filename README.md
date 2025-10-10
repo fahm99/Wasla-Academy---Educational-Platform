@@ -1,7 +1,7 @@
 # Wasla Academy - Educational Platform
 
 <p align="center">
-  <img src="assets/screens/Screenshot_20251010_171618544_waslaacademy.jpg" alt="Wasla Academy Platform" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٦١٨٥٤٤_waslaacademy.jpg" alt="Wasla Academy Platform" width="200"/>
 </p>
 
 <p align="center">
@@ -45,12 +45,12 @@ The platform enables:
 ## 📸 Screenshots
 
 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-  <img src="assets/screens/Screenshot_20251010_171618544_waslaacademy.jpg" alt="Home Screen" width="200"/>
-  <img src="assets/screens/Screenshot_20251010_171622649_waslaacademy.jpg" alt="Course Detail" width="200"/>
-  <img src="assets/screens/Screenshot_20251010_171741722_waslaacademy.jpg" alt="Course Player" width="200"/>
-  <img src="assets/screens/Screenshot_20251010_171807993_waslaacademy.jpg" alt="Exams" width="200"/>
-  <img src="assets/screens/Screenshot_20251010_171815886_waslaacademy.jpg" alt="Profile" width="200"/>
-  <img src="assets/screens/Screenshot_20251010_171831327_waslaacademy.jpg" alt="Navigation" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٦١٨٥٤٤_waslaacademy.jpg" alt="Home Screen" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٦٢٢٦٤٩_waslaacademy.jpg" alt="Course Detail" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٧٤١٧٢٢_waslaacademy.jpg" alt="Course Player" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٨٠٧٩٩٣_waslaacademy.jpg" alt="Exams" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٨١٥٨٨٦_waslaacademy.jpg" alt="Profile" width="200"/>
+  <img src="assets/screens/Screenshot_٢٠٢٥١٠١٠_١٧١٨٣١٣٢٧_waslaacademy.jpg" alt="Navigation" width="200"/>
 </div>
 
 ## ⚙️ Tech Stack
