@@ -20,7 +20,6 @@ import 'package:waslaacademy/src/user/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 
-
 void main() {
   runApp(const MyApp());
 }

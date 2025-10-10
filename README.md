@@ -1,45 +1,68 @@
-# Wasla Academy Platform
+# Wasla Academy - Educational Platform
 
-A comprehensive educational platform connecting students with universities, institutes, and trainers across Yemen.
+<p align="center">
+  <img src="assets/screens/Screenshot_20251010_171618544_waslaacademy.jpg" alt="Wasla Academy Platform" width="200"/>
+</p>
 
-## 📱 About the App
+<p align="center">
+  <strong>An integrated e-learning platform connecting students with educational institutions across Yemen</strong>
+</p>
 
-**Wasla Academy** is an integrated e-learning platform designed to:
-- Connect students with educational service providers (universities, institutes, trainers)
-- Provide online courses across various fields
-- Manage live lectures and exams
-- Issue verified digital certificates
-- Enable communication between students and instructors
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#license">License</a>
+</p>
 
-## ✨ Features
+## 📱 About Wasla Academy
+
+**Wasla Academy** is a comprehensive educational platform built with Flutter that bridges the gap between students and educational service providers in Yemen. Our mission is to democratize education by providing accessible, high-quality learning opportunities to students regardless of their geographical location.
+
+The platform enables:
+- Students to discover and enroll in courses from universities, institutes, and individual trainers
+- Educational institutions to showcase their offerings and reach a wider audience
+- Interactive learning experiences through video lessons, exams, and discussion forums
+- Verified digital certificates upon course completion
+
+## 🌟 Key Features
 
 ### For Students
-- ✅ Browse courses by category and level  
-- ✅ Enroll in free or paid courses  
-- ✅ Track lesson progress  
-- ✅ Attend live classes  
-- ✅ Take exams and receive certificates  
-- ✅ Participate in discussions  
-- ✅ Chat with instructors  
+- 📚 **Course Discovery**: Browse courses by category, level, and provider
+- 💰 **Flexible Pricing**: Access both free and premium courses
+- ▶️ **Interactive Learning**: Video lessons, downloadable resources, and progress tracking
+- 📝 **Assessments**: Take exams to test knowledge and earn certificates
+- 👥 **Community Engagement**: Participate in course discussions and chat with instructors
+- 🏆 **Achievements**: Earn certificates and track learning milestones
 
-### For Instructors and Institutions
-- ✅ Create and manage courses  
-- ✅ Add lessons and learning materials  
-- ✅ Create and manage exams  
-- ✅ Monitor student progress  
-- ✅ Issue certificates  
+### For Educators & Institutions
+- 🛠️ **Course Management**: Create and manage courses with lessons and exams
+- 👥 **Student Interaction**: Monitor progress and engage through discussions
+- 📊 **Analytics**: Track enrollment and performance metrics
+- 🎓 **Certification**: Issue verified digital certificates to successful students
 
-## 🛠️ Technologies Used
+## 📸 Screenshots
 
-- **Framework**: Flutter 3.4.3+  
-- **State Management**: BLoC Pattern  
-- **Database**: Supabase (PostgreSQL)  
-- **Storage**: Supabase Storage  
-- **Authentication**: Supabase Auth  
-- **UI**: Material Design + Custom Widgets  
+<div style="display: flex; flex-wrap: wrap; gap: 10px;">
+  <img src="assets/screens/Screenshot_20251010_171618544_waslaacademy.jpg" alt="Home Screen" width="200"/>
+  <img src="assets/screens/Screenshot_20251010_171622649_waslaacademy.jpg" alt="Course Detail" width="200"/>
+  <img src="assets/screens/Screenshot_20251010_171741722_waslaacademy.jpg" alt="Course Player" width="200"/>
+  <img src="assets/screens/Screenshot_20251010_171807993_waslaacademy.jpg" alt="Exams" width="200"/>
+  <img src="assets/screens/Screenshot_20251010_171815886_waslaacademy.jpg" alt="Profile" width="200"/>
+  <img src="assets/screens/Screenshot_20251010_171831327_waslaacademy.jpg" alt="Navigation" width="200"/>
+</div>
 
-## 📦 Main Dependencies
+## ⚙️ Tech Stack
 
+- **Framework**: [Flutter 3.4.3+](https://flutter.dev/)
+- **State Management**: [BLoC Pattern](https://bloclibrary.dev/)
+- **UI Architecture**: Material Design with custom widgets
+- **Backend**: [Supabase](https://supabase.io/) (PostgreSQL, Authentication, Storage)
+- **Localization**: Arabic (RTL) and English support
+- **Responsive Design**: Adapts to mobile, tablet, and desktop screens
+
+### Core Dependencies
 ```yaml
 dependencies:
   flutter_bloc: ^8.1.5
@@ -49,15 +72,18 @@ dependencies:
   carousel_slider: ^4.2.1
   video_player: ^2.9.2
   intl: ^0.19.0
+  provider: ^6.1.5+1
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.4
 ```
 
 ## 🚀 Getting Started
 
-### Requirements
-- Flutter SDK 3.4.3+  
-- Dart SDK 3.0.0+  
-- Android Studio or VS Code  
-- Supabase account (for production)
+### Prerequisites
+- Flutter SDK 3.4.3+
+- Dart SDK 3.0.0+
+- Android Studio or VS Code
+- Supabase account (for backend services)
 
 ### Installation
 
@@ -72,7 +98,15 @@ cd wasla_academy-ELearning-platform
 flutter pub get
 ```
 
-3. Run the app:
+3. Configure Supabase:
+   - Create a Supabase project at [supabase.io](https://supabase.io/)
+   - Update the configuration in `lib/src/config/supabase_config.dart`:
+   ```dart
+   static const String supabaseUrl = 'YOUR_SUPABASE_URL';
+   static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+   ```
+
+4. Run the app:
 ```bash
 flutter run
 ```
@@ -82,73 +116,36 @@ flutter run
 ```
 lib/
 ├── src/
-│   ├── blocs/
-│   ├── config/
-│   ├── constants/
-│   ├── data/
-│   │   └── repositories/
-│   ├── models/
-│   ├── services/
-│   ├── utils/
-│   ├── views/
-│   └── widgets/
-└── main.dart
-
+│   ├── user/
+│   │   ├── blocs/           # Business Logic Components
+│   │   ├── constants/       # App themes, colors, sizes
+│   │   ├── data/            # Data models and repositories
+│   │   ├── models/          # Domain models
+│   │   ├── services/        # External services
+│   │   ├── utils/           # Helper functions
+│   │   ├── views/           # Screens and pages
+│   │   └── widgets/         # Reusable UI components
+│   └── main.dart            # App entry point
 assets/
-├── data/
-└── images/
+├── data/                    # JSON data files
+├── images/                  # Image assets
+└── screens/                 # Application screenshots
 ```
-
-## 🔧 Configuration
-
-### 1. Setup Supabase
-
-Follow the steps in [SUPABASE_INTEGRATION_GUIDE.md](SUPABASE_INTEGRATION_GUIDE.md)
-
-### 2. Update Supabase Configuration
-
-In `lib/src/config/supabase_config.dart`:
-
-```dart
-static const String supabaseUrl = 'YOUR_SUPABASE_URL';
-static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
-```
-
-## 📱 Available Screens
-
-- ✅ Splash Screen  
-- ✅ Login & Signup  
-- ✅ Home Page  
-- ✅ Course List  
-- ✅ Course Details  
-- ✅ Course Player  
-- ✅ Exams  
-- ✅ Profile  
-- ✅ Settings  
-- ✅ Notifications  
-- ✅ Chats  
-- ✅ Discussions  
-- ✅ Certificates & Achievements  
-- ✅ Live Lectures  
-
-## 🎨 Design
-
-- ✅ Light & Dark Mode  
-- ✅ Arabic RTL Support  
-- ✅ Fully Responsive Layout  
-- ✅ Material Design 3  
-
-## 📄 Documentation
-
-- [Development Plan](DEVELOPMENT_PLAN.md)  
-- [Supabase Integration Guide](SUPABASE_INTEGRATION_GUIDE.md)  
-- [Flutter HTML Integration Summary](FLUTTER_HTML_INTEGRATION_SUMMARY.md)
 
 ## 🧪 Testing
 
+Run the test suite:
 ```bash
 flutter test
+```
+
+Run code analysis:
+```bash
 flutter analyze
+```
+
+Format code:
+```bash
 flutter format .
 ```
 
@@ -157,7 +154,7 @@ flutter format .
 ### Android
 ```bash
 flutter build apk --release
-# or
+# or for Google Play
 flutter build appbundle --release
 ```
 
@@ -166,27 +163,30 @@ flutter build appbundle --release
 flutter build ios --release
 ```
 
-## 🤝 Contribution
+## 🤝 Contributing
 
-We welcome contributions!  
-1. Fork the repository  
-2. Create a feature branch  
-3. Commit your changes  
-4. Push your branch  
-5. Open a Pull Request  
+Contributions are welcome! Here's how you can help:
 
-## 📝 License
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-This project is licensed under the [MIT License](LICENSE).
+Please ensure your code follows the project's coding standards and includes appropriate tests.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 📞 Contact
 
-- 🌐 Website: [waslaacademy.com](https://waslaacademy.com)  
-- 📧 Email: info@waslaacademy.com  
-- 🛠️ Support: support@waslaacademy.com  
+- 🌐 Website: [waslaacademy.com](https://waslaacademy.com)
+- 📧 Email: info@waslaacademy.com
+- 🛠️ Support: support@waslaacademy.com
 
-## 🙏 Acknowledgment
+## 🙏 Acknowledgments
 
-Thanks to everyone contributing to this project!
-
----
+- Thanks to all contributors who have helped shape Wasla Academy
+- Special recognition to the Flutter and Supabase communities for their excellent documentation and tools
+- Appreciation to educators and institutions partnering with us to expand access to quality education in Yemen
