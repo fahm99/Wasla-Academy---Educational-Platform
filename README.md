@@ -178,15 +178,3 @@ Please ensure your code follows the project's coding standards and includes appr
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📞 Contact
-
-- 🌐 Website: [waslaacademy.com](https://waslaacademy.com)
-- 📧 Email: info@waslaacademy.com
-- 🛠️ Support: support@waslaacademy.com
-
-## 🙏 Acknowledgments
-
-- Thanks to all contributors who have helped shape Wasla Academy
-- Special recognition to the Flutter and Supabase communities for their excellent documentation and tools
-- Appreciation to educators and institutions partnering with us to expand access to quality education in Yemen
