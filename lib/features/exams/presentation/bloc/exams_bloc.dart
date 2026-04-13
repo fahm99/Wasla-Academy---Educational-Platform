@@ -41,9 +41,52 @@ class ExamsBloc extends Bloc<ExamsEvent, ExamsState> {
 
     final result = await getCourseExamsUseCase(event.courseId);
 
-    result.fold(
-      (failure) => emit(ExamsError(failure.message)),
-      (exams) => emit(CourseExamsLoaded(exams)),
+    await result.fold(
+      (failure) async => emit(ExamsError(failure.message)),
+      (exams) async {
+        // تحميل النتائج وإمكانية إعادة المحاولة لكل امتحان
+        final Map<String, ExamResult?> results = {};
+        final Map<String, bool> canRetake = {};
+
+        for (var exam in exams) {
+          // الحصول على آخر نتيجة للطالب
+          final resultResponse = await getMyExamResultsUseCase(event.studentId);
+          resultResponse.fold(
+            (failure) {
+              results[exam.id] = null;
+            },
+            (allResults) {
+              // البحث عن نتيجة هذا الامتحان
+              try {
+                final examResult = allResults.firstWhere(
+                  (r) => r.examId == exam.id,
+                );
+                results[exam.id] = examResult;
+              } catch (e) {
+                results[exam.id] = null;
+              }
+            },
+          );
+
+          // التحقق من إمكانية إعادة المحاولة
+          final canRetakeResult =
+              await canRetakeExamUseCase(exam.id, event.studentId);
+          canRetakeResult.fold(
+            (failure) {
+              canRetake[exam.id] = false;
+            },
+            (can) {
+              canRetake[exam.id] = can;
+            },
+          );
+        }
+
+        emit(CourseExamsLoaded(
+          exams: exams,
+          results: results,
+          canRetake: canRetake,
+        ));
+      },
     );
   }
 

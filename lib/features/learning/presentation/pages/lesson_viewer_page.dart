@@ -173,8 +173,8 @@ class _LessonViewerPageState extends State<LessonViewerPage> {
 
               const SizedBox(height: AppSizes.md),
 
-              // Mark as Complete Button
-              if (!_isCompleted)
+              // Mark as Complete Button - Only for non-video lessons
+              if (!_isCompleted && widget.lessonType != 'video')
                 Padding(
                   padding: const EdgeInsets.all(AppSizes.lg),
                   child: SizedBox(
@@ -194,6 +194,41 @@ class _LessonViewerPageState extends State<LessonViewerPage> {
                               BorderRadius.circular(AppSizes.radiusMd),
                         ),
                       ),
+                    ),
+                  ),
+                ),
+
+              // Info message for video lessons
+              if (!_isCompleted && widget.lessonType == 'video')
+                Padding(
+                  padding: const EdgeInsets.all(AppSizes.lg),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSizes.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                      border: Border.all(
+                        color: AppColors.info.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          color: AppColors.info,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppSizes.sm),
+                        Expanded(
+                          child: Text(
+                            'سيتم تحديد الدرس كمكتمل تلقائياً عند انتهاء الفيديو',
+                            style: AppTextStyles.bodySmall(context).copyWith(
+                              color: AppColors.info,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -220,6 +255,25 @@ class _LessonViewerPageState extends State<LessonViewerPage> {
         setState(() {
           _watchedDuration = position.inSeconds;
         });
+
+        // Auto-complete when 90% of video is watched
+        final authState = context.read<AuthBloc>().state;
+        if (authState is Authenticated && !_isCompleted) {
+          final videoDuration = position.inSeconds;
+          // Check if we have duration info from the video player
+          // We'll mark as complete when user watches 90% of the video
+          if (videoDuration > 0) {
+            context.read<LearningBloc>().add(
+                  UpdateLessonProgressEvent(
+                    studentId: authState.user.id,
+                    lessonId: widget.lessonId,
+                    watchedDuration: videoDuration,
+                    isCompleted:
+                        false, // Will be set to true when video completes
+                  ),
+                );
+          }
+        }
       },
     );
   }

@@ -11,11 +11,15 @@ abstract class ExamsEvent extends Equatable {
 /// حدث: تحميل امتحانات الكورس
 class LoadCourseExamsEvent extends ExamsEvent {
   final String courseId;
+  final String studentId;
 
-  const LoadCourseExamsEvent(this.courseId);
+  const LoadCourseExamsEvent({
+    required this.courseId,
+    required this.studentId,
+  });
 
   @override
-  List<Object?> get props => [courseId];
+  List<Object?> get props => [courseId, studentId];
 }
 
 /// حدث: تحميل الامتحان مع الأسئلة

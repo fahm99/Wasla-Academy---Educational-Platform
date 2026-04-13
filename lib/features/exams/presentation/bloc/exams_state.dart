@@ -17,11 +17,17 @@ class ExamsLoading extends ExamsState {}
 /// حالة تحميل امتحانات الكورس بنجاح
 class CourseExamsLoaded extends ExamsState {
   final List<Exam> exams;
+  final Map<String, ExamResult?> results; // exam_id -> result
+  final Map<String, bool> canRetake; // exam_id -> can retake
 
-  const CourseExamsLoaded(this.exams);
+  const CourseExamsLoaded({
+    required this.exams,
+    required this.results,
+    required this.canRetake,
+  });
 
   @override
-  List<Object?> get props => [exams];
+  List<Object?> get props => [exams, results, canRetake];
 }
 
 /// حالة تحميل الامتحان مع الأسئلة بنجاح

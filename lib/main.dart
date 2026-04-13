@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -31,6 +33,20 @@ import 'features/payments/presentation/pages/payment_info_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // معالجة الأخطاء العامة
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('❌ Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
+
+  // معالجة الأخطاء غير المتزامنة
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('❌ Platform Error: $error');
+    debugPrint('Stack trace: $stack');
+    return true;
+  };
+
   // تهيئة Supabase
   try {
     await ApiClient.initialize();
@@ -40,7 +56,12 @@ void main() async {
   }
 
   // تهيئة Dependency Injection
-  await di.init();
+  try {
+    await di.init();
+    debugPrint('✅ Dependency Injection initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Dependency Injection initialization failed: $e');
+  }
 
   runApp(const MyApp());
 }

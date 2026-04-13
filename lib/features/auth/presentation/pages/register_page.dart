@@ -5,6 +5,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/helpers.dart';
 import '../bloc/auth_bloc.dart';
 import 'login_page.dart';
+import '../../../home/presentation/pages/main_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -53,6 +54,10 @@ class _RegisterPageState extends State<RegisterPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
+        listenWhen: (previous, current) {
+          // منع معالجة الحالة نفسها مرتين
+          return previous.runtimeType != current.runtimeType;
+        },
         listener: (context, state) {
           debugPrint('🔄 Auth state changed: ${state.runtimeType}');
           if (state is AuthError) {
@@ -63,12 +68,15 @@ class _RegisterPageState extends State<RegisterPage> {
             Helpers.showSuccessSnackbar(
                 context, 'تم إنشاء الحساب بنجاح! مرحباً ${state.user.name}');
             // التوجيه الفوري بدون تأخير
-            if (context.mounted) {
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/main',
-                (route) => false,
-              );
-            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const MainPage(),
+                  ),
+                );
+              }
+            });
           }
         },
         builder: (context, state) {

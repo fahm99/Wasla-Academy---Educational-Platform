@@ -108,14 +108,20 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       widget.onPositionChanged!(_controller!.value.position);
     }
 
-    // Check if video is completed
+    // Check if video is completed (when position reaches 95% or more of duration)
     if (_controller != null &&
-        _controller!.value.position >= _controller!.value.duration &&
         _controller!.value.duration.inSeconds > 0 &&
         !_notifiedCompletion) {
-      _notifiedCompletion = true;
-      if (widget.onVideoCompleted != null) {
-        widget.onVideoCompleted!();
+      final position = _controller!.value.position.inSeconds;
+      final duration = _controller!.value.duration.inSeconds;
+      final completionPercentage = (position / duration) * 100;
+
+      // Mark as completed when 95% of video is watched or video ends
+      if (completionPercentage >= 95 || position >= duration) {
+        _notifiedCompletion = true;
+        if (widget.onVideoCompleted != null) {
+          widget.onVideoCompleted!();
+        }
       }
     }
 
@@ -153,6 +159,11 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       return '${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}';
     }
     return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  double _getCompletionPercentage(Duration position, Duration duration) {
+    if (duration.inSeconds == 0) return 0;
+    return (position.inSeconds / duration.inSeconds) * 100;
   }
 
   @override
@@ -228,15 +239,28 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
         });
       },
       child: Container(
+        width: double.infinity,
         height: 250,
         color: Colors.black,
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            // Video player
+            // Video player - centered with proper aspect ratio and fit
             Center(
               child: AspectRatio(
                 aspectRatio: _controller!.value.aspectRatio,
-                child: VideoPlayer(_controller!),
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: _controller!.value.size.width,
+                    height: _controller!.value.size.height,
+                    child: AbsorbPointer(
+                      // Prevent direct interaction with video player
+                      absorbing: true,
+                      child: VideoPlayer(_controller!),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -319,6 +343,32 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                               color: Colors.white70,
                             ),
                           ),
+                          const SizedBox(width: AppSizes.spaceSmall),
+                          // Completion percentage indicator
+                          if (duration.inSeconds > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.spaceSmall,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getCompletionPercentage(
+                                            position, duration) >=
+                                        95
+                                    ? AppColors.success.withOpacity(0.8)
+                                    : AppColors.primary.withOpacity(0.8),
+                                borderRadius:
+                                    BorderRadius.circular(AppSizes.radiusSmall),
+                              ),
+                              child: Text(
+                                '${_getCompletionPercentage(position, duration).toStringAsFixed(0)}%',
+                                style: AppTextStyles.caption(context).copyWith(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           const Spacer(),
                           // Rewind 10 seconds
                           IconButton(

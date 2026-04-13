@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:waslaacademy/core/constants/app_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../home/presentation/pages/main_page.dart';
 import '../bloc/auth_bloc.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -45,6 +46,10 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
+        listenWhen: (previous, current) {
+          // استمع فقط للتغييرات الفعلية في الحالة
+          return previous.runtimeType != current.runtimeType;
+        },
         listener: (context, state) {
           debugPrint('🔄 Auth state changed: ${state.runtimeType}');
           if (state is AuthError) {
@@ -53,13 +58,16 @@ class _LoginPageState extends State<LoginPage> {
           } else if (state is Authenticated) {
             debugPrint('✅ Authenticated: ${state.user.name}');
             Helpers.showSuccessSnackbar(context, 'مرحباً ${state.user.name}!');
-            // التوجيه الفوري بدون تأخير
-            if (context.mounted) {
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/main',
-                (route) => false,
-              );
-            }
+            // التوجيه الفوري باستخدام pushReplacement
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const MainPage(),
+                  ),
+                );
+              }
+            });
           }
         },
         builder: (context, state) {
