@@ -2,242 +2,151 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:waslaacademy/src/user/blocs/auth/auth_bloc.dart';
-import 'package:waslaacademy/src/user/blocs/course/course_bloc.dart';
-import 'package:waslaacademy/src/user/views/splash_screen.dart';
-import 'package:waslaacademy/src/user/views/login_screen.dart';
-import 'package:waslaacademy/src/user/views/register_screen.dart';
-import 'package:waslaacademy/src/user/views/main_screen.dart';
-import 'package:waslaacademy/src/user/views/home_screen.dart';
-import 'package:waslaacademy/src/user/views/notifications_screen.dart';
-import 'package:waslaacademy/src/user/views/certificates_screen.dart';
-import 'package:waslaacademy/src/user/views/about_screen.dart';
-import 'package:waslaacademy/src/user/views/contact_screen.dart';
-import 'package:waslaacademy/src/user/widgets/test_button_screen.dart';
-import 'package:waslaacademy/src/user/constants/app_colors.dart';
-import 'package:waslaacademy/src/user/constants/app_theme.dart';
-import 'package:waslaacademy/src/user/providers/theme_provider.dart';
-import 'package:provider/provider.dart';
 
+import 'core/network/api_client.dart';
+import 'core/constants/app_colors.dart';
+import 'core/di/injection_container.dart' as di;
 
+// Blocs
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/courses/presentation/bloc/courses_bloc.dart';
+import 'features/payments/presentation/bloc/payments_bloc.dart';
+import 'features/learning/presentation/bloc/learning_bloc.dart';
+import 'features/exams/presentation/bloc/exams_bloc.dart';
+import 'features/certificates/presentation/bloc/certificates_bloc.dart';
+import 'features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'features/profile/presentation/bloc/profile_bloc.dart';
 
-void main() {
+// Screens
+import 'features/splash/presentation/pages/splash_screen.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/home/presentation/pages/main_page.dart';
+import 'features/info/presentation/pages/about_screen.dart';
+import 'features/info/presentation/pages/contact_screen.dart';
+import 'features/info/presentation/pages/help_screen.dart';
+import 'features/info/presentation/pages/terms_screen.dart';
+import 'features/settings/presentation/pages/settings_screen.dart';
+import 'features/payments/presentation/pages/payment_info_page.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة Supabase
+  try {
+    await ApiClient.initialize();
+    debugPrint('✅ Supabase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Supabase initialization failed: $e');
+  }
+
+  // تهيئة Dependency Injection
+  await di.init();
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late AuthBloc authBloc;
-
-  @override
-  void initState() {
-    super.initState();
-    authBloc = AuthBloc();
-  }
-
-  @override
-  void dispose() {
-    authBloc.close();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return MultiProvider(
+    return MultiBlocProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        BlocProvider(
+            create: (_) => di.sl<AuthBloc>()..add(const LoadCurrentUser())),
+        BlocProvider(create: (_) => di.sl<CoursesBloc>()),
+        BlocProvider(create: (_) => di.sl<PaymentsBloc>()),
+        BlocProvider(create: (_) => di.sl<LearningBloc>()),
+        BlocProvider(create: (_) => di.sl<ExamsBloc>()),
+        BlocProvider(create: (_) => di.sl<CertificatesBloc>()),
+        BlocProvider(create: (_) => di.sl<NotificationsBloc>()),
+        BlocProvider(create: (_) => di.sl<ProfileBloc>()),
       ],
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: authBloc),
-          BlocProvider(
-              create: (context) =>
-                  CourseBloc(authBloc: context.read<AuthBloc>())),
-        ],
-        child: Consumer<ThemeProvider>(
-          builder: (context, themeProvider, child) {
-            return ScreenUtilInit(
-              designSize: const Size(375, 812),
-              minTextAdapt: true,
-              splitScreenMode: true,
-              useInheritedMediaQuery: true,
-              rebuildFactor: RebuildFactors.change,
-              ensureScreenSize: true,
-              builder: (context, child) {
-                return MaterialApp(
-                  title: 'منصة وصلة أكاديمي (Wasla Academy)',
-                  theme: AppTheme.theme,
-                  darkTheme: AppTheme.darkTheme,
-                  themeMode: themeProvider.themeMode,
-                  locale: const Locale('ar'),
-                  supportedLocales: const [
-                    Locale('ar', ''),
-                    Locale('en', ''),
-                  ],
-                  localizationsDelegates: const [
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  builder: (context, child) {
-                    return Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: child!,
-                    );
-                  },
-                  routes: {
-                    '/': (context) => const AuthWrapper(),
-                    '/main': (context) {
-                      final args = ModalRoute.of(context)?.settings.arguments
-                          as Map<String, dynamic>?;
-                      return MainScreen(initialTab: args?['initialTab']);
-                    },
-                    '/home': (context) => const HomeScreen(),
-                    '/courses': (context) => const HomeScreen(),
-                    '/notifications': (context) => const NotificationsScreen(),
-                    '/certificates': (context) => const CertificatesScreen(),
-                    '/about': (context) => const AboutScreen(),
-                    '/contact': (context) => const ContactScreen(),
-                    '/test-button': (context) => const TestButtonScreen(),
-                    '/login': (context) => BlocProvider.value(
-                          value: context.read<AuthBloc>(),
-                          child: LoginScreen(
-                            onRegisterTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RegisterScreen(
-                                    onLoginTap: () {
-                                      Navigator.pop(context);
-                                    },
-                                    onRegisterSuccess: () {
-                                      // Handle registration success
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                            onLoginSuccess: () {
-                              // Handle login success
-                            },
-                          ),
-                        ),
-                  },
-                  debugShowCheckedModeBanner: false,
+      child: ScreenUtilInit(
+        designSize: const Size(375, 812),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        useInheritedMediaQuery: true,
+        rebuildFactor: RebuildFactors.change,
+        ensureScreenSize: true,
+        builder: (context, child) {
+          return MaterialApp(
+            title: 'منصة وصلة أكاديمي (Wasla Academy)',
+            theme: ThemeData(
+              primaryColor: AppColors.primary,
+              scaffoldBackgroundColor: AppColors.light,
+              fontFamily: 'Cairo',
+            ),
+            locale: const Locale('ar'),
+            supportedLocales: const [
+              Locale('ar', ''),
+              Locale('en', ''),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            builder: (context, child) {
+              return Directionality(
+                textDirection: TextDirection.rtl,
+                child: child!,
+              );
+            },
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const AuthWrapper(),
+              '/login': (context) => const LoginPage(),
+              '/main': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments
+                    as Map<String, dynamic>?;
+                return MainPage(initialTab: args?['initialTab']);
+              },
+              '/payment-info': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments
+                    as Map<String, dynamic>?;
+                return PaymentInfoPage(
+                  providerId: args?['providerId'] ?? '',
+                  courseId: args?['courseId'] ?? '',
+                  courseName: args?['courseName'] ?? '',
+                  amount: args?['amount'] ?? 0.0,
                 );
               },
-            );
-          },
-        ),
+              '/about': (context) => const AboutScreen(),
+              '/contact': (context) => const ContactScreen(),
+              '/help': (context) => const HelpScreen(),
+              '/terms': (context) => const TermsScreen(),
+              '/settings': (context) => const SettingsScreen(),
+            },
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }
 }
 
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  bool _showSplash = true;
-  bool _isLoggedIn = false;
-  bool _isStorageChecked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeApp();
-    });
-  }
-
-  void _initializeApp() async {
-    // Load user from local storage
-    _loadUserFromStorage();
-  }
-
-  void _loadUserFromStorage() async {
-    final authBloc = context.read<AuthBloc>();
-    authBloc.add(LoadUserFromStorage());
-
-    setState(() {
-      _isStorageChecked = true;
-    });
-  }
-
-  void _navigateFromSplash() {
-    setState(() {
-      _showSplash = false;
-    });
-  }
-
-  void _onLoginSuccess() {
-    setState(() {
-      _isLoggedIn = true;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
-      return SplashScreen(onSplashFinished: _navigateFromSplash);
-    }
-
-    if (!_isStorageChecked) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthSuccess) {
-          setState(() {
-            _isLoggedIn = true;
-          });
-        } else if (state is AuthInitial) {
-          setState(() {
-            _isLoggedIn = false;
-          });
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is AuthLoading || state is AuthInitial) {
+          return const SplashScreen();
         }
+
+        if (state is Authenticated) {
+          return const MainPage();
+        }
+
+        return const LoginPage();
       },
-      child: _isLoggedIn
-          ? KeyedSubtree(
-              key: ValueKey(_isLoggedIn),
-              child: const MainScreen(),
-            )
-          : LoginScreen(
-              onRegisterTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RegisterScreen(
-                      onLoginTap: () {
-                        Navigator.pop(context);
-                      },
-                      onRegisterSuccess: _onLoginSuccess,
-                    ),
-                  ),
-                );
-              },
-              onLoginSuccess: _onLoginSuccess,
-            ),
     );
   }
 }
 
-// Placeholder screen for routes that haven't been implemented yet
 class PlaceholderScreen extends StatelessWidget {
   final String title;
 
@@ -250,9 +159,7 @@ class PlaceholderScreen extends StatelessWidget {
         title: Text(title),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Center(

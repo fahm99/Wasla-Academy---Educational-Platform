@@ -11,29 +11,59 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  
+  # State Management
   flutter_bloc: ^8.1.5
   equatable: ^2.0.5
+  provider: ^6.1.5+1
+  
+  # Supabase
+  supabase_flutter: ^2.5.0
+  
+  # HTTP & API
+  http: ^1.2.0
+  dio: ^5.4.0
+  
+  # UI Components
   shimmer: ^3.0.0
   cached_network_image: ^3.3.1
-  intl: ^0.19.0
   carousel_slider: ^4.2.1
   flutter_screenutil: ^5.9.0
-  pdf: ^3.8.1
-  share_plus: ^10.1.4
-  file_picker: ^8.1.4
-  google_sign_in: ^6.2.1
+  flutter_colorpicker: ^1.0.3
+  
+  # Localization
+  intl: ^0.19.0
   flutter_localizations:
     sdk: flutter
+  
+  # PDF & Documents
+  pdf: ^3.8.1
   printing: ^5.14.2
-  video_player: ^2.9.2
-  # chewie: ^1.8.5  # Temporarily disabled due to compatibility issues
-  shared_preferences: ^2.3.2
-  provider: ^6.1.5+1
-  # provider: ^6.1.5+1  # Using BLoC instead
-  go_router: ^14.2.7
-  flutter_colorpicker: ^1.0.3
-  screenshot: ^2.3.0
+  
+  # File Handling
+  file_picker: ^8.1.4
+  image_picker: ^1.0.7
   path_provider: ^2.1.4
+  path: ^1.9.0
+  
+  # Video
+  video_player: ^2.9.2
+  
+  # Storage
+  shared_preferences: ^2.3.2
+  
+  # Social & Sharing
+  share_plus: ^10.1.4
+  google_sign_in: ^6.2.1
+  
+  # Navigation
+  go_router: ^14.2.7
+  
+  # Utils
+  screenshot: ^2.3.0
+  uuid: ^4.3.3
+  dartz: ^0.10.1
+  get_it: ^7.6.0
 
 dev_dependencies:
   flutter_test:
@@ -44,7 +74,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/data/
+    - assets/screens/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
