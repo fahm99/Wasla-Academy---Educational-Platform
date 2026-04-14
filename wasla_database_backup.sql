@@ -1,26 +1,38 @@
--- ============================================
--- Wasla Academy Database - Full Backup
--- تاريخ الإنشاء: 2026-04-13
--- ============================================
--- هذا الملف يحتوي على كامل بنية قاعدة بيانات Wasla Academy
--- بما في ذلك الجداول، السياسات، الدوال، التريجرز، والـ Storage Buckets
--- ============================================
+-- ============================================================================
+-- Wasla Database Complete Backup
+-- Generated: 2026-04-14
+-- Purpose: Complete database recreation script for disaster recovery
+-- ============================================================================
 
--- ============================================
--- 1. تفعيل الإضافات المطلوبة (Extensions)
--- ============================================
+-- ============================================================================
+-- SECTION 1: EXTENSIONS
+-- ============================================================================
 
--- تفعيل UUID
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Enable required PostgreSQL extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA graphql;
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA vault;
 
--- تفعيل pgcrypto للتشفير
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- ============================================================================
+-- SECTION 2: SCHEMAS
+-- ============================================================================
 
--- ============================================
--- 2. إنشاء الجداول (Tables)
--- ============================================
+-- Create schemas if they don't exist
+CREATE SCHEMA IF NOT EXISTS public;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE SCHEMA IF NOT EXISTS graphql;
+CREATE SCHEMA IF NOT EXISTS vault;
 
--- جدول المستخدمين
+-- ============================================================================
+-- SECTION 3: TABLES
+-- ============================================================================
+
+-- Table: users
+-- Description: جدول المستخدمين (الطلاب ومقدمي الخدمات والمسؤولين)
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR NOT NULL UNIQUE,
@@ -31,32 +43,26 @@ CREATE TABLE IF NOT EXISTS public.users (
     user_type VARCHAR NOT NULL CHECK (user_type IN ('student', 'provider', 'admin')),
     bio TEXT,
     rating NUMERIC DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    is_verified BOOLEAN DEFAULT FALSE,
-    
-    -- حقول خاصة بالطلاب
+    is_active BOOLEAN DEFAULT true,
+    is_verified BOOLEAN DEFAULT false,
     courses_enrolled INTEGER DEFAULT 0,
     certificates_count INTEGER DEFAULT 0,
     total_spent NUMERIC DEFAULT 0,
-    
-    -- حقول خاصة بمقدمي الخدمات
     courses_count INTEGER DEFAULT 0,
     students_count INTEGER DEFAULT 0,
     total_earnings NUMERIC DEFAULT 0,
     bank_account JSONB,
-    
-    -- حقول خاصة بالمسؤولين
     permissions JSONB,
-    
     last_login TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 
--- جدول الكورسات
+-- Table: courses
+-- Description: جدول الكورسات
 CREATE TABLE IF NOT EXISTS public.courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    provider_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    provider_id UUID NOT NULL REFERENCES public.users(id),
     title VARCHAR NOT NULL,
     description TEXT,
     category VARCHAR,
@@ -65,41 +71,42 @@ CREATE TABLE IF NOT EXISTS public.courses (
     currency VARCHAR DEFAULT 'SAR',
     duration_hours INTEGER,
     thumbnail_url TEXT,
-    cover_image_url TEXT COMMENT 'رابط الصورة التعريفية (الغلاف) للكورس',
+    cover_image_url TEXT,
     status VARCHAR DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived', 'pending_review')),
     students_count INTEGER DEFAULT 0,
     rating NUMERIC DEFAULT 0,
     reviews_count INTEGER DEFAULT 0,
-    is_featured BOOLEAN DEFAULT FALSE,
-    
-    -- حقول الشهادات
-    certificate_template JSONB COMMENT 'تصميم قالب الشهادة بصيغة JSON',
-    certificate_auto_issue BOOLEAN DEFAULT FALSE,
+    is_featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    certificate_template JSONB,
+    certificate_auto_issue BOOLEAN DEFAULT false,
     certificate_logo_url TEXT,
     certificate_signature_url TEXT,
-    certificate_custom_color VARCHAR DEFAULT '#1E3A8A',
-    
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    certificate_custom_color VARCHAR DEFAULT '#1E3A8A'
 );
 
--- جدول الوحدات (Modules)
+COMMENT ON COLUMN public.courses.cover_image_url IS 'رابط الصورة التعريفية (الغلاف) للكورس';
+COMMENT ON COLUMN public.courses.certificate_template IS 'تصميم قالب الشهادة بصيغة JSON';
+
+-- Table: modules
+-- Description: جدول الوحدات التعليمية
 CREATE TABLE IF NOT EXISTS public.modules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(id),
     title VARCHAR NOT NULL,
     description TEXT,
     order_number INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(course_id, order_number)
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 
--- جدول الدروس
+-- Table: lessons
+-- Description: جدول الدروس
 CREATE TABLE IF NOT EXISTS public.lessons (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    module_id UUID NOT NULL REFERENCES public.modules(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    module_id UUID NOT NULL REFERENCES public.modules(id),
+    course_id UUID NOT NULL REFERENCES public.courses(id),
     title VARCHAR NOT NULL,
     description TEXT,
     order_number INTEGER NOT NULL,
@@ -107,29 +114,30 @@ CREATE TABLE IF NOT EXISTS public.lessons (
     video_url TEXT,
     video_duration INTEGER,
     content TEXT,
-    is_free BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(module_id, order_number)
+    is_free BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 
--- جدول موارد الدروس
+-- Table: lesson_resources
+-- Description: جدول موارد الدروس (ملفات مرفقة)
 CREATE TABLE IF NOT EXISTS public.lesson_resources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lesson_id UUID NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
+    lesson_id UUID NOT NULL REFERENCES public.lessons(id),
     file_name VARCHAR NOT NULL,
     file_url TEXT NOT NULL,
     file_type VARCHAR CHECK (file_type IN ('pdf', 'doc', 'image', 'zip', 'other')),
     file_size INTEGER,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT now()
 );
 
--- جدول التسجيلات
+-- Table: enrollments
+-- Description: جدول تسجيلات الطلاب في الكورسات
 CREATE TABLE IF NOT EXISTS public.enrollments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-    enrollment_date TIMESTAMP DEFAULT NOW(),
+    student_id UUID NOT NULL REFERENCES public.users(id),
+    course_id UUID NOT NULL REFERENCES public.courses(id),
+    enrollment_date TIMESTAMP DEFAULT now(),
     completion_percentage INTEGER DEFAULT 0 CHECK (completion_percentage >= 0 AND completion_percentage <= 100),
     status VARCHAR DEFAULT 'active' CHECK (status IN ('active', 'completed', 'dropped')),
     last_accessed TIMESTAMP,
@@ -138,55 +146,60 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
     UNIQUE(student_id, course_id)
 );
 
--- جدول تقدم الدروس
+-- Table: lesson_progress
+-- Description: جدول تقدم الطلاب في الدروس
 CREATE TABLE IF NOT EXISTS public.lesson_progress (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    lesson_id UUID NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
-    is_completed BOOLEAN DEFAULT FALSE,
+    student_id UUID NOT NULL REFERENCES public.users(id),
+    lesson_id UUID NOT NULL REFERENCES public.lessons(id),
+    is_completed BOOLEAN DEFAULT false,
     watched_duration INTEGER DEFAULT 0,
     completed_at TIMESTAMP,
     UNIQUE(student_id, lesson_id)
 );
 
--- جدول الامتحانات
+-- Table: exams
+-- Description: جدول الامتحانات
 CREATE TABLE IF NOT EXISTS public.exams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-    module_id UUID REFERENCES public.modules(id) ON DELETE CASCADE COMMENT 'معرف الوحدة - NULL يعني امتحان للكورس بالكامل',
+    course_id UUID NOT NULL REFERENCES public.courses(id),
+    module_id UUID REFERENCES public.modules(id),
     title VARCHAR NOT NULL,
     description TEXT,
     total_questions INTEGER,
     passing_score INTEGER,
     duration_minutes INTEGER,
     status VARCHAR DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
-    allow_retake BOOLEAN DEFAULT TRUE,
+    allow_retake BOOLEAN DEFAULT true,
     max_attempts INTEGER DEFAULT 3,
-    order_number INTEGER DEFAULT 0 COMMENT 'ترتيب الامتحان ضمن الوحدة أو الكورس',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(course_id, COALESCE(module_id, '00000000-0000-0000-0000-000000000000'::uuid), order_number)
+    order_number INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
 );
 
--- جدول أسئلة الامتحانات
+COMMENT ON COLUMN public.exams.module_id IS 'معرف الوحدة - NULL يعني امتحان للكورس بالكامل';
+COMMENT ON COLUMN public.exams.order_number IS 'ترتيب الامتحان ضمن الوحدة أو الكورس';
+
+-- Table: exam_questions
+-- Description: جدول أسئلة الامتحانات
 CREATE TABLE IF NOT EXISTS public.exam_questions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+    exam_id UUID NOT NULL REFERENCES public.exams(id),
     question_text TEXT NOT NULL,
     question_type VARCHAR CHECK (question_type IN ('multiple_choice', 'true_false', 'essay', 'short_answer')),
     options JSONB,
     correct_answer TEXT,
     points INTEGER DEFAULT 1,
     order_number INTEGER,
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(exam_id, order_number)
+    created_at TIMESTAMP DEFAULT now()
 );
 
--- جدول نتائج الامتحانات
+-- Table: exam_results
+-- Description: جدول نتائج الامتحانات
 CREATE TABLE IF NOT EXISTS public.exam_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    exam_id UUID NOT NULL REFERENCES public.exams(id),
+    student_id UUID NOT NULL REFERENCES public.users(id),
     score INTEGER,
     total_score INTEGER,
     percentage NUMERIC,
@@ -194,46 +207,73 @@ CREATE TABLE IF NOT EXISTS public.exam_results (
     attempt_number INTEGER DEFAULT 1,
     completed_at TIMESTAMP,
     answers JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT now()
 );
 
--- جدول الشهادات
+-- Table: certificates
+-- Description: جدول الشهادات مع دعم الإصدار التلقائي والتخصيص
 CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    provider_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(id),
+    student_id UUID NOT NULL REFERENCES public.users(id),
+    provider_id UUID NOT NULL REFERENCES public.users(id),
     certificate_number VARCHAR NOT NULL UNIQUE,
-    issue_date TIMESTAMP DEFAULT NOW(),
+    issue_date TIMESTAMP DEFAULT now(),
     expiry_date TIMESTAMP,
     template_design JSONB,
     certificate_url TEXT,
     status VARCHAR DEFAULT 'issued' CHECK (status IN ('issued', 'revoked')),
-    
-    -- حقول التخصيص
-    provider_logo_url TEXT COMMENT 'رابط شعار مقدم الخدمة',
-    provider_signature_url TEXT COMMENT 'رابط توقيع مقدم الخدمة',
-    custom_color VARCHAR DEFAULT '#1E3A8A' COMMENT 'اللون المخصص للشهادة',
-    auto_issue BOOLEAN DEFAULT FALSE COMMENT 'هل تم إصدار الشهادة تلقائياً',
-    grade VARCHAR COMMENT 'التقدير (A+, A, B+, إلخ)',
-    completion_date TIMESTAMP COMMENT 'تاريخ إكمال الكورس',
-    
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT now(),
+    provider_logo_url TEXT,
+    provider_signature_url TEXT,
+    custom_color VARCHAR DEFAULT '#1E3A8A',
+    auto_issue BOOLEAN DEFAULT false,
+    grade VARCHAR,
+    completion_date TIMESTAMP,
+    template_data JSONB,
+    verification_code TEXT UNIQUE,
+    is_auto_issued BOOLEAN DEFAULT false,
+    student_name TEXT,
+    student_email TEXT,
+    course_name TEXT,
+    provider_name TEXT
 );
-COMMENT ON TABLE public.certificates IS 'جدول الشهادات مع دعم الإصدار التلقائي والتخصيص';
 
--- جدول المدفوعات
+COMMENT ON TABLE public.certificates IS 'جدول الشهادات مع دعم الإصدار التلقائي والتخصيص';
+COMMENT ON COLUMN public.certificates.provider_logo_url IS 'رابط شعار مقدم الخدمة';
+COMMENT ON COLUMN public.certificates.provider_signature_url IS 'رابط توقيع مقدم الخدمة';
+COMMENT ON COLUMN public.certificates.custom_color IS 'اللون المخصص للشهادة';
+COMMENT ON COLUMN public.certificates.auto_issue IS 'هل تم إصدار الشهادة تلقائياً';
+COMMENT ON COLUMN public.certificates.grade IS 'التقدير (A+, A, B+, إلخ)';
+COMMENT ON COLUMN public.certificates.completion_date IS 'تاريخ إكمال الكورس';
+
+-- Table: certificate_templates
+-- Description: جدول قوالب الشهادات
+CREATE TABLE IF NOT EXISTS public.certificate_templates (
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+    provider_id UUID NOT NULL REFERENCES public.users(id),
+    course_id UUID REFERENCES public.courses(id),
+    name TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT false,
+    template_data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Table: payments
+-- Description: جدول المدفوعات
 CREATE TABLE IF NOT EXISTS public.payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-    provider_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES public.users(id),
+    course_id UUID NOT NULL REFERENCES public.courses(id),
+    provider_id UUID NOT NULL REFERENCES public.users(id),
     amount NUMERIC NOT NULL CHECK (amount >= 0),
     currency VARCHAR DEFAULT 'SAR',
     payment_method VARCHAR CHECK (payment_method IN ('credit_card', 'apple_pay', 'google_pay', 'bank_transfer')),
     transaction_id VARCHAR UNIQUE,
     status VARCHAR DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
     payment_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT now(),
     receipt_image_url TEXT,
     transaction_reference TEXT,
     student_name TEXT,
@@ -241,54 +281,14 @@ CREATE TABLE IF NOT EXISTS public.payments (
     verified_by UUID REFERENCES public.users(id),
     verified_at TIMESTAMPTZ,
     rejection_reason TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    updated_at TIMESTAMP DEFAULT now()
 );
 
--- جدول الإشعارات
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    title VARCHAR NOT NULL,
-    message TEXT,
-    type VARCHAR CHECK (type IN ('course', 'exam', 'certificate', 'payment', 'system')),
-    related_id UUID,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- جدول التقييمات
-CREATE TABLE IF NOT EXISTS public.reviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(course_id, student_id)
-);
-
--- جدول إعدادات التطبيق
-CREATE TABLE IF NOT EXISTS public.app_settings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    theme VARCHAR DEFAULT 'light' CHECK (theme IN ('light', 'dark')),
-    language VARCHAR DEFAULT 'ar' CHECK (language IN ('ar', 'en')),
-    notifications_enabled BOOLEAN DEFAULT TRUE,
-    email_notifications BOOLEAN DEFAULT TRUE,
-    push_notifications BOOLEAN DEFAULT TRUE COMMENT 'تفعيل الإشعارات الفورية',
-    notify_new_students BOOLEAN DEFAULT TRUE COMMENT 'إشعار عند انضمام طالب جديد',
-    notify_new_reviews BOOLEAN DEFAULT TRUE COMMENT 'إشعار عند تلقي تقييم جديد',
-    notify_new_payments BOOLEAN DEFAULT TRUE COMMENT 'إشعار عند تلقي دفعة جديدة',
-    auto_save BOOLEAN DEFAULT TRUE COMMENT 'الحفظ التلقائي للتغييرات',
-    settings_data JSONB,
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- جدول إعدادات الدفع لمقدمي الخدمات
+-- Table: provider_payment_settings
+-- Description: إعدادات الدفع لمقدمي الخدمات
 CREATE TABLE IF NOT EXISTS public.provider_payment_settings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    provider_id UUID NOT NULL UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+    provider_id UUID NOT NULL UNIQUE REFERENCES public.users(id),
     wallet_number TEXT,
     wallet_owner_name TEXT,
     bank_name TEXT,
@@ -296,23 +296,75 @@ CREATE TABLE IF NOT EXISTS public.provider_payment_settings (
     bank_account_owner_name TEXT,
     iban TEXT,
     additional_info TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
+
 COMMENT ON TABLE public.provider_payment_settings IS 'إعدادات الدفع لمقدمي الخدمات';
 
--- جدول قائمة الانتظار
+-- Table: notifications
+-- Description: جدول الإشعارات
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(id),
+    title VARCHAR NOT NULL,
+    message TEXT,
+    type VARCHAR CHECK (type IN ('course', 'exam', 'certificate', 'payment', 'system')),
+    related_id UUID,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- Table: reviews
+-- Description: جدول التقييمات
+CREATE TABLE IF NOT EXISTS public.reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id),
+    student_id UUID NOT NULL REFERENCES public.users(id),
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+
+-- Table: app_settings
+-- Description: جدول إعدادات التطبيق للمستخدمين
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(id),
+    theme VARCHAR DEFAULT 'light' CHECK (theme IN ('light', 'dark')),
+    language VARCHAR DEFAULT 'ar' CHECK (language IN ('ar', 'en')),
+    notifications_enabled BOOLEAN DEFAULT true,
+    email_notifications BOOLEAN DEFAULT true,
+    settings_data JSONB,
+    updated_at TIMESTAMP DEFAULT now(),
+    push_notifications BOOLEAN DEFAULT true,
+    notify_new_students BOOLEAN DEFAULT true,
+    notify_new_reviews BOOLEAN DEFAULT true,
+    notify_new_payments BOOLEAN DEFAULT true,
+    auto_save BOOLEAN DEFAULT true
+);
+
+COMMENT ON COLUMN public.app_settings.push_notifications IS 'تفعيل الإشعارات الفورية';
+COMMENT ON COLUMN public.app_settings.notify_new_students IS 'إشعار عند انضمام طالب جديد';
+COMMENT ON COLUMN public.app_settings.notify_new_reviews IS 'إشعار عند تلقي تقييم جديد';
+COMMENT ON COLUMN public.app_settings.notify_new_payments IS 'إشعار عند تلقي دفعة جديدة';
+COMMENT ON COLUMN public.app_settings.auto_save IS 'الحفظ التلقائي للتغييرات';
+
+-- Table: waitlist
+-- Description: جدول قائمة الانتظار
 CREATE TABLE IF NOT EXISTS public.waitlist (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL UNIQUE,
     user_type TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-    email_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc', now()),
+    email_sent BOOLEAN DEFAULT false,
     email_sent_at TIMESTAMPTZ
 );
 
--- جدول سجل التدقيق
+-- Table: audit_log
+-- Description: جدول سجل التدقيق
 CREATE TABLE IF NOT EXISTS public.audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_name TEXT NOT NULL,
@@ -321,489 +373,166 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
     old_data JSONB,
     new_data JSONB,
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT now()
 );
 
 
--- ============================================
--- 3. إنشاء الفهارس (Indexes)
--- ============================================
-
--- فهارس جدول المستخدمين
-CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
-CREATE INDEX IF NOT EXISTS idx_users_user_type ON public.users(user_type);
-CREATE INDEX IF NOT EXISTS idx_users_is_active ON public.users(is_active);
-
--- فهارس جدول الكورسات
-CREATE INDEX IF NOT EXISTS idx_courses_provider_id ON public.courses(provider_id);
-CREATE INDEX IF NOT EXISTS idx_courses_status ON public.courses(status);
-CREATE INDEX IF NOT EXISTS idx_courses_category ON public.courses(category);
-CREATE INDEX IF NOT EXISTS idx_courses_level ON public.courses(level);
-CREATE INDEX IF NOT EXISTS idx_courses_provider_status ON public.courses(provider_id, status);
-CREATE INDEX IF NOT EXISTS idx_courses_cover_image_url ON public.courses(cover_image_url) WHERE cover_image_url IS NOT NULL;
-
--- فهارس جدول الوحدات
-CREATE INDEX IF NOT EXISTS idx_modules_course_id ON public.modules(course_id);
-
--- فهارس جدول الدروس
-CREATE INDEX IF NOT EXISTS idx_lessons_module_id ON public.lessons(module_id);
-CREATE INDEX IF NOT EXISTS idx_lessons_course_id ON public.lessons(course_id);
-
--- فهارس جدول موارد الدروس
-CREATE INDEX IF NOT EXISTS idx_lesson_resources_lesson_id ON public.lesson_resources(lesson_id);
-
--- فهارس جدول التسجيلات
-CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments(student_id);
-CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON public.enrollments(course_id);
-CREATE INDEX IF NOT EXISTS idx_enrollments_status ON public.enrollments(status);
-CREATE INDEX IF NOT EXISTS idx_enrollments_student_course ON public.enrollments(student_id, course_id);
-
--- فهارس جدول تقدم الدروس
-CREATE INDEX IF NOT EXISTS idx_lesson_progress_student_id ON public.lesson_progress(student_id);
-CREATE INDEX IF NOT EXISTS idx_lesson_progress_lesson_id ON public.lesson_progress(lesson_id);
-CREATE INDEX IF NOT EXISTS idx_lesson_progress_student_lesson ON public.lesson_progress(student_id, lesson_id);
-
--- فهارس جدول الامتحانات
-CREATE INDEX IF NOT EXISTS idx_exams_course_id ON public.exams(course_id);
-CREATE INDEX IF NOT EXISTS idx_exams_module_id ON public.exams(module_id);
-CREATE INDEX IF NOT EXISTS idx_exams_status ON public.exams(status);
-
--- فهارس جدول أسئلة الامتحانات
-CREATE INDEX IF NOT EXISTS idx_exam_questions_exam_id ON public.exam_questions(exam_id);
-
--- فهارس جدول نتائج الامتحانات
-CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id ON public.exam_results(exam_id);
-CREATE INDEX IF NOT EXISTS idx_exam_results_student_id ON public.exam_results(student_id);
-CREATE INDEX IF NOT EXISTS idx_exam_results_passed ON public.exam_results(passed);
-
--- فهارس جدول الشهادات
-CREATE INDEX IF NOT EXISTS idx_certificates_student_id ON public.certificates(student_id);
-CREATE INDEX IF NOT EXISTS idx_certificates_course_id ON public.certificates(course_id);
-CREATE INDEX IF NOT EXISTS idx_certificates_provider_id ON public.certificates(provider_id);
-CREATE INDEX IF NOT EXISTS idx_certificates_status ON public.certificates(status);
-CREATE INDEX IF NOT EXISTS idx_certificates_certificate_number ON public.certificates(certificate_number);
-CREATE INDEX IF NOT EXISTS idx_certificates_auto_issue ON public.certificates(auto_issue);
-
--- فهارس جدول المدفوعات
-CREATE INDEX IF NOT EXISTS idx_payments_student_id ON public.payments(student_id);
-CREATE INDEX IF NOT EXISTS idx_payments_course_id ON public.payments(course_id);
-CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON public.payments(provider_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments(status);
-CREATE INDEX IF NOT EXISTS idx_payments_student_status ON public.payments(student_id, status);
-CREATE INDEX IF NOT EXISTS idx_payments_provider_status ON public.payments(provider_id, status);
-
--- فهارس جدول الإشعارات
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON public.notifications(is_read);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, is_read);
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at);
-
--- فهارس جدول التقييمات
-CREATE INDEX IF NOT EXISTS idx_reviews_course_id ON public.reviews(course_id);
-CREATE INDEX IF NOT EXISTS idx_reviews_student_id ON public.reviews(student_id);
-
--- فهارس جدول إعدادات التطبيق
-CREATE INDEX IF NOT EXISTS idx_app_settings_user_id ON public.app_settings(user_id);
-
--- فهارس جدول إعدادات الدفع
-CREATE INDEX IF NOT EXISTS idx_provider_payment_settings_provider ON public.provider_payment_settings(provider_id);
-
--- فهارس جدول قائمة الانتظار
-CREATE INDEX IF NOT EXISTS idx_waitlist_email ON public.waitlist(email);
-CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON public.waitlist(created_at DESC);
-
--- ============================================
--- 4. تفعيل Row Level Security (RLS)
--- ============================================
-
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.modules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lesson_resources ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.exam_questions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.exam_results ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.provider_payment_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
-
-
--- ============================================
--- 5. سياسات الأمان (RLS Policies)
--- ============================================
-
--- سياسات جدول المستخدمين
-DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
-CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
-CREATE POLICY "Users can insert own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
-CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Everyone can view providers" ON public.users;
-CREATE POLICY "Everyone can view providers" ON public.users FOR SELECT USING (user_type = 'provider' OR auth.uid() = id);
-
--- سياسات جدول الكورسات
-DROP POLICY IF EXISTS "Students can view published courses" ON public.courses;
-CREATE POLICY "Students can view published courses" ON public.courses FOR SELECT USING (status = 'published' OR provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can view their courses" ON public.courses;
-CREATE POLICY "Providers can view their courses" ON public.courses FOR SELECT USING (provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can insert their courses" ON public.courses;
-CREATE POLICY "Providers can insert their courses" ON public.courses FOR INSERT WITH CHECK (provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can update their courses" ON public.courses;
-CREATE POLICY "Providers can update their courses" ON public.courses FOR UPDATE USING (provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can delete their courses" ON public.courses;
-CREATE POLICY "Providers can delete their courses" ON public.courses FOR DELETE USING (provider_id = auth.uid());
-
--- سياسات جدول الوحدات
-DROP POLICY IF EXISTS "Students can view modules" ON public.modules;
-CREATE POLICY "Students can view modules" ON public.modules FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE status = 'published') OR
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can view modules" ON public.modules;
-CREATE POLICY "Providers can view modules" ON public.modules FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can insert modules" ON public.modules;
-CREATE POLICY "Providers can insert modules" ON public.modules FOR INSERT WITH CHECK (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update modules" ON public.modules;
-CREATE POLICY "Providers can update modules" ON public.modules FOR UPDATE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can delete modules" ON public.modules;
-CREATE POLICY "Providers can delete modules" ON public.modules FOR DELETE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
--- سياسات جدول الدروس
-DROP POLICY IF EXISTS "Students can view lessons" ON public.lessons;
-CREATE POLICY "Students can view lessons" ON public.lessons FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE status = 'published') OR
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can view lessons" ON public.lessons;
-CREATE POLICY "Providers can view lessons" ON public.lessons FOR SELECT USING (
-    module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can insert lessons" ON public.lessons;
-CREATE POLICY "Providers can insert lessons" ON public.lessons FOR INSERT WITH CHECK (
-    module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update lessons" ON public.lessons;
-CREATE POLICY "Providers can update lessons" ON public.lessons FOR UPDATE USING (
-    module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can delete lessons" ON public.lessons;
-CREATE POLICY "Providers can delete lessons" ON public.lessons FOR DELETE USING (
-    module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
--- سياسات جدول موارد الدروس
-DROP POLICY IF EXISTS "Students can view lesson resources" ON public.lesson_resources;
-CREATE POLICY "Students can view lesson resources" ON public.lesson_resources FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM enrollments e JOIN lessons l ON l.course_id = e.course_id
-        WHERE l.id = lesson_id AND e.student_id = auth.uid() AND e.status = 'active'
-    ) OR
-    EXISTS (
-        SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id
-        WHERE l.id = lesson_id AND c.provider_id = auth.uid()
-    )
-);
-
-DROP POLICY IF EXISTS "Providers can add lesson resources" ON public.lesson_resources;
-CREATE POLICY "Providers can add lesson resources" ON public.lesson_resources FOR INSERT WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id
-        WHERE l.id = lesson_id AND c.provider_id = auth.uid()
-    )
-);
-
-DROP POLICY IF EXISTS "Providers can update lesson resources" ON public.lesson_resources;
-CREATE POLICY "Providers can update lesson resources" ON public.lesson_resources FOR UPDATE USING (
-    EXISTS (
-        SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id
-        WHERE l.id = lesson_id AND c.provider_id = auth.uid()
-    )
-);
-
-DROP POLICY IF EXISTS "Providers can delete lesson resources" ON public.lesson_resources;
-CREATE POLICY "Providers can delete lesson resources" ON public.lesson_resources FOR DELETE USING (
-    EXISTS (
-        SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id
-        WHERE l.id = lesson_id AND c.provider_id = auth.uid()
-    )
-);
-
--- سياسات جدول التسجيلات
-DROP POLICY IF EXISTS "Students can view their enrollments" ON public.enrollments;
-CREATE POLICY "Students can view their enrollments" ON public.enrollments FOR SELECT USING (student_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can insert their own enrollments" ON public.enrollments;
-CREATE POLICY "Users can insert their own enrollments" ON public.enrollments FOR INSERT WITH CHECK (
-    student_id = auth.uid() AND
-    EXISTS (SELECT 1 FROM courses WHERE id = course_id AND status = 'published')
-);
-
-DROP POLICY IF EXISTS "Users can update their own enrollments" ON public.enrollments;
-CREATE POLICY "Users can update their own enrollments" ON public.enrollments FOR UPDATE USING (student_id = auth.uid()) WITH CHECK (student_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can view their students" ON public.enrollments;
-CREATE POLICY "Providers can view their students" ON public.enrollments FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update enrollments" ON public.enrollments;
-CREATE POLICY "Providers can update enrollments" ON public.enrollments FOR UPDATE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
--- سياسات جدول تقدم الدروس
-DROP POLICY IF EXISTS "Students can view their progress" ON public.lesson_progress;
-CREATE POLICY "Students can view their progress" ON public.lesson_progress FOR SELECT USING (student_id = auth.uid());
-
--- سياسات جدول الامتحانات
-DROP POLICY IF EXISTS "Providers can view exams" ON public.exams;
-CREATE POLICY "Providers can view exams" ON public.exams FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can insert exams" ON public.exams;
-CREATE POLICY "Providers can insert exams" ON public.exams FOR INSERT WITH CHECK (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update exams" ON public.exams;
-CREATE POLICY "Providers can update exams" ON public.exams FOR UPDATE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can delete exams" ON public.exams;
-CREATE POLICY "Providers can delete exams" ON public.exams FOR DELETE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
--- سياسات جدول أسئلة الامتحانات
-DROP POLICY IF EXISTS "Providers can view exam questions" ON public.exam_questions;
-CREATE POLICY "Providers can view exam questions" ON public.exam_questions FOR SELECT USING (
-    exam_id IN (SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can insert exam questions" ON public.exam_questions;
-CREATE POLICY "Providers can insert exam questions" ON public.exam_questions FOR INSERT WITH CHECK (
-    exam_id IN (SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update exam questions" ON public.exam_questions;
-CREATE POLICY "Providers can update exam questions" ON public.exam_questions FOR UPDATE USING (
-    exam_id IN (SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can delete exam questions" ON public.exam_questions;
-CREATE POLICY "Providers can delete exam questions" ON public.exam_questions FOR DELETE USING (
-    exam_id IN (SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid())
-);
-
--- سياسات جدول نتائج الامتحانات
-DROP POLICY IF EXISTS "Students can view their exam results" ON public.exam_results;
-CREATE POLICY "Students can view their exam results" ON public.exam_results FOR SELECT USING (student_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can view exam results for their courses" ON public.exam_results;
-CREATE POLICY "Providers can view exam results for their courses" ON public.exam_results FOR SELECT USING (
-    exam_id IN (SELECT id FROM exams WHERE course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()))
-);
-
--- سياسات جدول الشهادات
-DROP POLICY IF EXISTS "Students can view their certificates" ON public.certificates;
-CREATE POLICY "Students can view their certificates" ON public.certificates FOR SELECT USING (student_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can view certificates" ON public.certificates;
-CREATE POLICY "Providers can view certificates" ON public.certificates FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can insert certificates" ON public.certificates;
-CREATE POLICY "Providers can insert certificates" ON public.certificates FOR INSERT WITH CHECK (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update certificates" ON public.certificates;
-CREATE POLICY "Providers can update certificates" ON public.certificates FOR UPDATE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
--- سياسات جدول المدفوعات
-DROP POLICY IF EXISTS "Students can view own payments" ON public.payments;
-CREATE POLICY "Students can view own payments" ON public.payments FOR SELECT USING (
-    student_id = auth.uid() OR provider_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
-DROP POLICY IF EXISTS "Providers can view payments" ON public.payments;
-CREATE POLICY "Providers can view payments" ON public.payments FOR SELECT USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
-DROP POLICY IF EXISTS "Providers can update payments" ON public.payments;
-CREATE POLICY "Providers can update payments" ON public.payments FOR UPDATE USING (
-    course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
-);
-
--- سياسات جدول الإشعارات
-DROP POLICY IF EXISTS "Students can view their notifications" ON public.notifications;
-CREATE POLICY "Students can view their notifications" ON public.notifications FOR SELECT USING (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can insert notifications" ON public.notifications;
-CREATE POLICY "Users can insert notifications" ON public.notifications FOR INSERT WITH CHECK (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
-CREATE POLICY "Users can update their notifications" ON public.notifications FOR UPDATE USING (user_id = auth.uid());
-
--- سياسات جدول التقييمات
-DROP POLICY IF EXISTS "Students can view all reviews" ON public.reviews;
-CREATE POLICY "Students can view all reviews" ON public.reviews FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Students can add reviews" ON public.reviews;
-CREATE POLICY "Students can add reviews" ON public.reviews FOR INSERT WITH CHECK (
-    auth.uid() = student_id AND
-    EXISTS (
-        SELECT 1 FROM enrollments
-        WHERE student_id = auth.uid() AND course_id = reviews.course_id AND status IN ('active', 'completed')
-    )
-);
-
-DROP POLICY IF EXISTS "Students can update own reviews" ON public.reviews;
-CREATE POLICY "Students can update own reviews" ON public.reviews FOR UPDATE USING (auth.uid() = student_id);
-
-DROP POLICY IF EXISTS "Students can delete own reviews" ON public.reviews;
-CREATE POLICY "Students can delete own reviews" ON public.reviews FOR DELETE USING (
-    auth.uid() = student_id OR
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
--- سياسات جدول إعدادات التطبيق
-DROP POLICY IF EXISTS "Users can view their settings" ON public.app_settings;
-CREATE POLICY "Users can view their settings" ON public.app_settings FOR SELECT USING (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can insert their settings" ON public.app_settings;
-CREATE POLICY "Users can insert their settings" ON public.app_settings FOR INSERT WITH CHECK (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Users can update their settings" ON public.app_settings;
-CREATE POLICY "Users can update their settings" ON public.app_settings FOR UPDATE USING (user_id = auth.uid());
-
--- سياسات جدول إعدادات الدفع
-DROP POLICY IF EXISTS "Providers can view their payment settings" ON public.provider_payment_settings;
-CREATE POLICY "Providers can view their payment settings" ON public.provider_payment_settings FOR SELECT USING (provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can insert their payment settings" ON public.provider_payment_settings;
-CREATE POLICY "Providers can insert their payment settings" ON public.provider_payment_settings FOR INSERT WITH CHECK (provider_id = auth.uid());
-
-DROP POLICY IF EXISTS "Providers can update their payment settings" ON public.provider_payment_settings;
-CREATE POLICY "Providers can update their payment settings" ON public.provider_payment_settings FOR UPDATE USING (provider_id = auth.uid());
-
--- سياسات جدول قائمة الانتظار
-DROP POLICY IF EXISTS "Anyone can join waitlist" ON public.waitlist;
-CREATE POLICY "Anyone can join waitlist" ON public.waitlist FOR INSERT WITH CHECK (
-    email IS NOT NULL AND email <> '' AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-);
-
-DROP POLICY IF EXISTS "Only admins can view waitlist" ON public.waitlist;
-CREATE POLICY "Only admins can view waitlist" ON public.waitlist FOR SELECT USING (
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
-DROP POLICY IF EXISTS "Only admins can update waitlist" ON public.waitlist;
-CREATE POLICY "Only admins can update waitlist" ON public.waitlist FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
-DROP POLICY IF EXISTS "Only admins can delete waitlist" ON public.waitlist;
-CREATE POLICY "Only admins can delete waitlist" ON public.waitlist FOR DELETE USING (
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
--- سياسات جدول سجل التدقيق
-DROP POLICY IF EXISTS "Only admins can view audit log" ON public.audit_log;
-CREATE POLICY "Only admins can view audit log" ON public.audit_log FOR SELECT USING (
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
-);
-
-
--- ============================================
--- 6. الدوال (Functions)
--- ============================================
-
--- دالة معالجة المستخدم الجديد
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
+-- ============================================================================
+-- SECTION 4: INDEXES
+-- ============================================================================
+
+-- Indexes for users table
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users USING btree (email);
+CREATE INDEX IF NOT EXISTS idx_users_user_type ON public.users USING btree (user_type);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON public.users USING btree (is_active);
+
+-- Indexes for courses table
+CREATE INDEX IF NOT EXISTS idx_courses_provider_id ON public.courses USING btree (provider_id);
+CREATE INDEX IF NOT EXISTS idx_courses_status ON public.courses USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_courses_category ON public.courses USING btree (category);
+CREATE INDEX IF NOT EXISTS idx_courses_level ON public.courses USING btree (level);
+CREATE INDEX IF NOT EXISTS idx_courses_provider_status ON public.courses USING btree (provider_id, status);
+CREATE INDEX IF NOT EXISTS idx_courses_cover_image_url ON public.courses USING btree (cover_image_url) WHERE (cover_image_url IS NOT NULL);
+
+-- Indexes for modules table
+CREATE INDEX IF NOT EXISTS idx_modules_course_id ON public.modules USING btree (course_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_modules_course_order ON public.modules USING btree (course_id, order_number);
+
+-- Indexes for lessons table
+CREATE INDEX IF NOT EXISTS idx_lessons_module_id ON public.lessons USING btree (module_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_course_id ON public.lessons USING btree (course_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lessons_module_order ON public.lessons USING btree (module_id, order_number);
+
+-- Indexes for lesson_resources table
+CREATE INDEX IF NOT EXISTS idx_lesson_resources_lesson_id ON public.lesson_resources USING btree (lesson_id);
+
+-- Indexes for enrollments table
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON public.enrollments USING btree (course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_status ON public.enrollments USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_course ON public.enrollments USING btree (student_id, course_id);
+
+-- Indexes for lesson_progress table
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_student_id ON public.lesson_progress USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_lesson_id ON public.lesson_progress USING btree (lesson_id);
+CREATE INDEX IF NOT EXISTS idx_lesson_progress_student_lesson ON public.lesson_progress USING btree (student_id, lesson_id);
+
+-- Indexes for exams table
+CREATE INDEX IF NOT EXISTS idx_exams_course_id ON public.exams USING btree (course_id);
+CREATE INDEX IF NOT EXISTS idx_exams_module_id ON public.exams USING btree (module_id);
+CREATE INDEX IF NOT EXISTS idx_exams_status ON public.exams USING btree (status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_exams_course_module_order ON public.exams USING btree (course_id, COALESCE(module_id, '00000000-0000-0000-0000-000000000000'::uuid), order_number);
+
+-- Indexes for exam_questions table
+CREATE INDEX IF NOT EXISTS idx_exam_questions_exam_id ON public.exam_questions USING btree (exam_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_exam_questions_order ON public.exam_questions USING btree (exam_id, order_number);
+
+-- Indexes for exam_results table
+CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id ON public.exam_results USING btree (exam_id);
+CREATE INDEX IF NOT EXISTS idx_exam_results_student_id ON public.exam_results USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_exam_results_passed ON public.exam_results USING btree (passed);
+
+-- Indexes for certificates table
+CREATE INDEX IF NOT EXISTS idx_certificates_student_id ON public.certificates USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_course_id ON public.certificates USING btree (course_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_provider_id ON public.certificates USING btree (provider_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_status ON public.certificates USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_certificates_verification ON public.certificates USING btree (verification_code);
+CREATE INDEX IF NOT EXISTS idx_certificates_certificate_number ON public.certificates USING btree (certificate_number);
+CREATE INDEX IF NOT EXISTS idx_certificates_auto_issue ON public.certificates USING btree (auto_issue);
+CREATE INDEX IF NOT EXISTS idx_certificates_student ON public.certificates USING btree (student_id);
+
+-- Indexes for certificate_templates table
+CREATE INDEX IF NOT EXISTS idx_certificate_templates_provider ON public.certificate_templates USING btree (provider_id);
+CREATE INDEX IF NOT EXISTS idx_certificate_templates_course ON public.certificate_templates USING btree (course_id);
+
+-- Indexes for payments table
+CREATE INDEX IF NOT EXISTS idx_payments_student_id ON public.payments USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_payments_course_id ON public.payments USING btree (course_id);
+CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON public.payments USING btree (provider_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_payments_student_status ON public.payments USING btree (student_id, status);
+CREATE INDEX IF NOT EXISTS idx_payments_provider_status ON public.payments USING btree (provider_id, status);
+
+-- Indexes for provider_payment_settings table
+CREATE INDEX IF NOT EXISTS idx_provider_payment_settings_provider ON public.provider_payment_settings USING btree (provider_id);
+
+-- Indexes for notifications table
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON public.notifications USING btree (is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications USING btree (created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications USING btree (user_id, is_read);
+
+-- Indexes for reviews table
+CREATE INDEX IF NOT EXISTS idx_reviews_course_id ON public.reviews USING btree (course_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_student_id ON public.reviews USING btree (student_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_course ON public.reviews USING btree (course_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_unique ON public.reviews USING btree (course_id, student_id);
+
+-- Indexes for app_settings table
+CREATE INDEX IF NOT EXISTS idx_app_settings_user_id ON public.app_settings USING btree (user_id);
+
+-- Indexes for waitlist table
+CREATE INDEX IF NOT EXISTS idx_waitlist_email ON public.waitlist USING btree (email);
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON public.waitlist USING btree (created_at DESC);
+
+-- ============================================================================
+-- SECTION 5: FUNCTIONS
+-- ============================================================================
+
+-- Function: generate_verification_code
+-- Description: توليد رمز تحقق فريد للشهادات
+CREATE OR REPLACE FUNCTION public.generate_verification_code()
+RETURNS text
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
+AS $function$
 DECLARE
-  v_user_type TEXT;
-  v_name      TEXT;
-  v_phone     TEXT;
+  code TEXT;
+  exists BOOLEAN;
 BEGIN
-  v_user_type := COALESCE(NEW.raw_user_meta_data->>'user_type', 'provider');
-  v_name      := COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1));
-  v_phone     := NEW.raw_user_meta_data->>'phone';
+  LOOP
+    code := 'WAS-' || LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
+    SELECT EXISTS(SELECT 1 FROM certificates WHERE verification_code = code) INTO exists;
+    EXIT WHEN NOT exists;
+  END LOOP;
+  RETURN code;
+END;
+$function$;
 
-  IF v_user_type NOT IN ('student', 'provider', 'admin') THEN
-    v_user_type := 'provider';
+-- Function: set_verification_code
+-- Description: تعيين رمز التحقق تلقائياً عند إنشاء شهادة
+CREATE OR REPLACE FUNCTION public.set_verification_code()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NEW.verification_code IS NULL THEN
+    NEW.verification_code := generate_verification_code();
   END IF;
-
-  INSERT INTO public.users (
-    id, email, name, phone, user_type,
-    is_verified, is_active,
-    courses_enrolled, certificates_count, total_spent,
-    courses_count, students_count, total_earnings,
-    created_at, updated_at
-  )
-  VALUES (
-    NEW.id, NEW.email, v_name, v_phone, v_user_type,
-    FALSE, TRUE,
-    0, 0, 0,
-    0, 0, 0,
-    NOW(), NOW()
-  )
-  ON CONFLICT (id) DO NOTHING;
-
   RETURN NEW;
 END;
-$$;
+$function$;
 
--- دالة تحديث عدد الطلاب في الكورس
-CREATE OR REPLACE FUNCTION public.update_course_students_count()
-RETURNS TRIGGER
+-- Function: update_enrollment_completed_at
+-- Description: تحديث تاريخ إكمال التسجيل عند الوصول إلى 100%
+CREATE OR REPLACE FUNCTION public.update_enrollment_completed_at()
+RETURNS trigger
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
+BEGIN
+  IF NEW.completion_percentage = 100 AND (OLD.completion_percentage < 100 OR OLD.completed_at IS NULL) THEN
+    NEW.completed_at := NOW();
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+-- Function: update_course_students_count
+-- Description: تحديث عدد الطلاب في الكورس
+CREATE OR REPLACE FUNCTION public.update_course_students_count()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     UPDATE courses SET students_count = students_count + 1 WHERE id = NEW.course_id;
@@ -812,14 +541,14 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$$;
+$function$;
 
--- دالة تحديث عدد الكورسات لمقدم الخدمة
+-- Function: update_provider_courses_count
+-- Description: تحديث عدد الكورسات لمقدم الخدمة
 CREATE OR REPLACE FUNCTION public.update_provider_courses_count()
-RETURNS TRIGGER
+RETURNS trigger
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     UPDATE users SET courses_count = courses_count + 1 WHERE id = NEW.provider_id AND user_type = 'provider';
@@ -828,28 +557,51 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$$;
+$function$;
 
--- دالة تحديث تاريخ إكمال التسجيل
-CREATE OR REPLACE FUNCTION public.update_enrollment_completed_at()
-RETURNS TRIGGER
+-- Function: update_provider_payment_settings_updated_at
+-- Description: تحديث تاريخ آخر تعديل لإعدادات الدفع
+CREATE OR REPLACE FUNCTION public.update_provider_payment_settings_updated_at()
+RETURNS trigger
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
 BEGIN
-  IF NEW.completion_percentage = 100 AND (OLD.completion_percentage < 100 OR OLD.completed_at IS NULL) THEN
-    NEW.completed_at := NOW();
-  END IF;
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$;
+$function$;
 
--- دالة التحقق من أهلية الطالب للحصول على الشهادة
-CREATE OR REPLACE FUNCTION public.check_student_eligibility(p_student_id UUID, p_course_id UUID)
-RETURNS BOOLEAN
+-- Function: check_user_permission
+-- Description: التحقق من صلاحيات المستخدم
+CREATE OR REPLACE FUNCTION public.check_user_permission(required_permission text)
+RETURNS boolean
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
+DECLARE
+  user_permissions jsonb;
+BEGIN
+  -- الحصول على صلاحيات المستخدم
+  SELECT permissions INTO user_permissions
+  FROM users
+  WHERE id = auth.uid();
+  
+  -- التحقق من وجود الصلاحية
+  IF user_permissions IS NULL THEN
+    RETURN false;
+  END IF;
+  
+  RETURN user_permissions ? required_permission;
+END;
+$function$;
+
+-- Function: check_student_eligibility
+-- Description: التحقق من أهلية الطالب للحصول على شهادة
+CREATE OR REPLACE FUNCTION public.check_student_eligibility(p_student_id uuid, p_course_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_enrollment_exists BOOLEAN;
   v_progress INTEGER;
@@ -894,21 +646,14 @@ BEGIN
   -- إذا لم يكن هناك امتحان، الطالب مؤهل
   RETURN TRUE;
 END;
-$$;
+$function$;
 
--- دالة الحصول على الطلاب المؤهلين للشهادة
-CREATE OR REPLACE FUNCTION public.get_eligible_students(p_course_id UUID)
-RETURNS TABLE(
-  student_id UUID,
-  student_name TEXT,
-  student_email TEXT,
-  progress INTEGER,
-  exam_score INTEGER,
-  completion_date TIMESTAMP
-)
+-- Function: get_eligible_students
+-- Description: الحصول على قائمة الطلاب المؤهلين للحصول على شهادة
+CREATE OR REPLACE FUNCTION public.get_eligible_students(p_course_id uuid)
+RETURNS TABLE(student_id uuid, student_name text, student_email text, progress integer, exam_score integer, completion_date timestamp without time zone)
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -945,114 +690,111 @@ BEGIN
   )
   ORDER BY e.completed_at DESC;
 END;
-$$;
+$function$;
 
--- دالة الإصدار التلقائي للشهادة
+
+-- Function: auto_issue_certificate
+-- Description: إصدار الشهادة تلقائياً عند استيفاء الشروط
 CREATE OR REPLACE FUNCTION public.auto_issue_certificate()
-RETURNS TRIGGER
+RETURNS trigger
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
 DECLARE
-  v_auto_issue BOOLEAN;
-  v_certificate_number TEXT;
-  v_provider_id UUID;
-  v_logo_url TEXT;
-  v_signature_url TEXT;
-  v_custom_color TEXT;
+  course_record RECORD;
+  student_record RECORD;
+  provider_record RECORD;
+  template_record RECORD;
+  total_lessons INT;
+  completed_lessons INT;
+  exam_passed BOOLEAN;
+  cert_exists BOOLEAN;
 BEGIN
-  -- التحقق من تفعيل الإصدار التلقائي
-  SELECT 
-    certificate_auto_issue,
-    provider_id,
-    certificate_logo_url,
-    certificate_signature_url,
-    certificate_custom_color
-  INTO 
-    v_auto_issue,
-    v_provider_id,
-    v_logo_url,
-    v_signature_url,
-    v_custom_color
-  FROM courses
-  WHERE id = NEW.course_id;
+  -- التحقق من أن الطالب أكمل الكورس
+  SELECT c.* INTO course_record FROM courses c WHERE c.id = NEW.course_id;
+  SELECT u.* INTO student_record FROM users u WHERE u.id = NEW.student_id;
+  SELECT u.* INTO provider_record FROM users u WHERE u.id = course_record.provider_id;
   
-  -- إذا كان الإصدار التلقائي مفعلاً والطالب أكمل الكورس
-  IF v_auto_issue AND NEW.completion_percentage = 100 AND NEW.status = 'active' THEN
-    -- التحقق من عدم وجود شهادة سابقة
-    IF NOT EXISTS(
-      SELECT 1 FROM certificates 
-      WHERE course_id = NEW.course_id 
+  -- حساب عدد الدروس المكتملة
+  SELECT COUNT(*) INTO total_lessons 
+  FROM lessons l 
+  JOIN modules m ON l.module_id = m.id 
+  WHERE m.course_id = NEW.course_id;
+  
+  SELECT COUNT(*) INTO completed_lessons
+  FROM lesson_progress lp
+  JOIN lessons l ON lp.lesson_id = l.id
+  JOIN modules m ON l.module_id = m.id
+  WHERE m.course_id = NEW.course_id 
+    AND lp.student_id = NEW.student_id 
+    AND lp.is_completed = true;
+  
+  -- التحقق من اجتياز الامتحان
+  SELECT EXISTS(
+    SELECT 1 FROM exam_results er
+    JOIN exams e ON er.exam_id = e.id
+    WHERE e.course_id = NEW.course_id
+      AND er.student_id = NEW.student_id
+      AND er.passed = true
+  ) INTO exam_passed;
+  
+  -- التحقق من عدم وجود شهادة سابقة
+  SELECT EXISTS(
+    SELECT 1 FROM certificates
+    WHERE course_id = NEW.course_id
       AND student_id = NEW.student_id
-    ) THEN
-      -- التحقق من الأهلية (النجاح في الامتحان إذا وجد)
-      IF check_student_eligibility(NEW.student_id, NEW.course_id) THEN
-        -- توليد رقم الشهادة
-        v_certificate_number := 'CERT-' || 
-          TO_CHAR(NOW(), 'YYYYMMDD') || '-' || 
-          TO_CHAR(NOW(), 'HH24MISS') || '-' || 
-          FLOOR(RANDOM() * 10000)::TEXT;
-        
-        -- إصدار الشهادة
-        INSERT INTO certificates (
-          course_id,
-          student_id,
-          provider_id,
-          certificate_number,
-          issue_date,
-          completion_date,
-          provider_logo_url,
-          provider_signature_url,
-          custom_color,
-          auto_issue,
-          status
-        ) VALUES (
-          NEW.course_id,
-          NEW.student_id,
-          v_provider_id,
-          v_certificate_number,
-          NOW(),
-          NEW.completed_at,
-          v_logo_url,
-          v_signature_url,
-          v_custom_color,
-          TRUE,
-          'issued'
-        );
-        
-        -- إرسال إشعار للطالب
-        INSERT INTO notifications (
-          user_id,
-          title,
-          message,
-          type,
-          related_id
-        ) VALUES (
-          NEW.student_id,
-          'تم إصدار شهادتك',
-          'تهانينا! تم إصدار شهادة إتمام الكورس تلقائياً',
-          'certificate',
-          NEW.course_id
-        );
-      END IF;
-    END IF;
+  ) INTO cert_exists;
+  
+  -- إصدار الشهادة إذا تحققت الشروط
+  IF total_lessons > 0 AND completed_lessons = total_lessons AND exam_passed AND NOT cert_exists THEN
+    -- جلب القالب الافتراضي
+    SELECT * INTO template_record 
+    FROM certificate_templates 
+    WHERE provider_id = course_record.provider_id 
+      AND (course_id = NEW.course_id OR course_id IS NULL)
+      AND is_default = true
+    LIMIT 1;
+    
+    INSERT INTO certificates (
+      course_id,
+      student_id,
+      student_name,
+      student_email,
+      course_name,
+      provider_id,
+      provider_name,
+      certificate_number,
+      issue_date,
+      completion_date,
+      status,
+      is_auto_issued,
+      template_data
+    ) VALUES (
+      NEW.course_id,
+      NEW.student_id,
+      student_record.name,
+      student_record.email,
+      course_record.title,
+      course_record.provider_id,
+      provider_record.name,
+      'CERT-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 10)),
+      NOW(),
+      NOW(),
+      'issued',
+      true,
+      COALESCE(template_record.template_data, '{}'::jsonb)
+    );
   END IF;
   
   RETURN NEW;
 END;
-$$;
+$function$;
 
--- دالة تحديث حالة الدفع
-CREATE OR REPLACE FUNCTION public.update_payment_status(
-  p_payment_id UUID,
-  p_new_status TEXT,
-  p_verified_by UUID,
-  p_rejection_reason TEXT DEFAULT NULL
-)
-RETURNS BOOLEAN
+-- Function: update_payment_status
+-- Description: تحديث حالة الدفع وتفعيل وصول الطالب
+CREATE OR REPLACE FUNCTION public.update_payment_status(p_payment_id uuid, p_new_status text, p_verified_by uuid, p_rejection_reason text DEFAULT NULL::text)
+RETURNS boolean
 LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
+AS $function$
 DECLARE
   v_student_id UUID;
   v_course_id UUID;
@@ -1077,7 +819,8 @@ BEGIN
     status = p_new_status,
     verified_by = p_verified_by,
     verified_at = NOW(),
-    rejection_reason = p_rejection_reason
+    rejection_reason = p_rejection_reason,
+    updated_at = NOW()
   WHERE id = p_payment_id;
   
   -- إذا تم تأكيد الدفع، تفعيل وصول الطالب للكورس
@@ -1088,6 +831,7 @@ BEGIN
       UPDATE enrollments
       SET 
         status = 'active',
+        payment_status = 'paid',
         updated_at = NOW()
       WHERE student_id = v_student_id AND course_id = v_course_id;
     ELSE
@@ -1097,12 +841,14 @@ BEGIN
         course_id,
         enrollment_date,
         status,
+        payment_status,
         completion_percentage
       ) VALUES (
         v_student_id,
         v_course_id,
         NOW(),
         'active',
+        'paid',
         0
       );
     END IF;
@@ -1154,53 +900,59 @@ BEGIN
   
   RETURN TRUE;
 END;
-$$;
+$function$;
 
--- دالة تحديث وقت التعديل لإعدادات الدفع
-CREATE OR REPLACE FUNCTION public.update_provider_payment_settings_updated_at()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SET search_path TO 'public', 'pg_temp'
-AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$;
-
--- دالة التحقق من صلاحيات المستخدم
-CREATE OR REPLACE FUNCTION public.check_user_permission(required_permission TEXT)
-RETURNS BOOLEAN
+-- Function: handle_new_user
+-- Description: إنشاء سجل مستخدم في جدول users عند التسجيل في auth
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public', 'pg_temp'
-AS $$
+SET search_path TO 'public'
+AS $function$
 DECLARE
-  user_permissions JSONB;
+  v_user_type TEXT;
+  v_name      TEXT;
+  v_phone     TEXT;
 BEGIN
-  -- الحصول على صلاحيات المستخدم
-  SELECT permissions INTO user_permissions
-  FROM users
-  WHERE id = auth.uid();
-  
-  -- التحقق من وجود الصلاحية
-  IF user_permissions IS NULL THEN
-    RETURN FALSE;
-  END IF;
-  
-  RETURN user_permissions ? required_permission;
-END;
-$$;
+  v_user_type := COALESCE(NEW.raw_user_meta_data->>'user_type', 'provider');
+  v_name      := COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1));
+  v_phone     := NEW.raw_user_meta_data->>'phone';
 
--- دالة تفعيل RLS تلقائياً
+  IF v_user_type NOT IN ('student', 'provider', 'admin') THEN
+    v_user_type := 'provider';
+  END IF;
+
+  INSERT INTO public.users (
+    id, email, name, phone, user_type,
+    is_verified, is_active,
+    courses_enrolled, certificates_count, total_spent,
+    courses_count, students_count, total_earnings,
+    created_at, updated_at
+  )
+  VALUES (
+    NEW.id, NEW.email, v_name, v_phone, v_user_type,
+    FALSE, TRUE,
+    0, 0, 0,
+    0, 0, 0,
+    NOW(), NOW()
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- Function: rls_auto_enable
+-- Description: تفعيل RLS تلقائياً على الجداول الجديدة
 CREATE OR REPLACE FUNCTION public.rls_auto_enable()
-RETURNS EVENT_TRIGGER
+RETURNS event_trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'pg_catalog'
-AS $$
+AS $function$
 DECLARE
-  cmd RECORD;
+  cmd record;
 BEGIN
   FOR cmd IN
     SELECT *
@@ -1210,7 +962,7 @@ BEGIN
   LOOP
      IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN
       BEGIN
-        EXECUTE format('ALTER TABLE IF EXISTS %s ENABLE ROW LEVEL SECURITY', cmd.object_identity);
+        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);
         RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;
       EXCEPTION
         WHEN OTHERS THEN
@@ -1221,327 +973,512 @@ BEGIN
      END IF;
   END LOOP;
 END;
-$$;
+$function$;
 
+-- ============================================================================
+-- SECTION 6: TRIGGERS
+-- ============================================================================
 
--- ============================================
--- 7. التريجرز (Triggers)
--- ============================================
-
--- تريجر معالجة المستخدم الجديد
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
+-- Trigger: trigger_set_verification_code
+-- Description: تعيين رمز التحقق تلقائياً للشهادات
+CREATE TRIGGER trigger_set_verification_code
+  BEFORE INSERT ON public.certificates
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
+  EXECUTE FUNCTION set_verification_code();
 
--- تريجر تحديث عدد الطلاب في الكورس
-DROP TRIGGER IF EXISTS trigger_update_course_students_count ON public.enrollments;
+-- Trigger: trigger_update_completed_at
+-- Description: تحديث تاريخ الإكمال عند الوصول إلى 100%
+CREATE TRIGGER trigger_update_completed_at
+  BEFORE UPDATE OF completion_percentage ON public.enrollments
+  FOR EACH ROW
+  EXECUTE FUNCTION update_enrollment_completed_at();
+
+-- Trigger: trigger_update_course_students_count
+-- Description: تحديث عدد الطلاب في الكورس
 CREATE TRIGGER trigger_update_course_students_count
   AFTER INSERT OR DELETE ON public.enrollments
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_course_students_count();
+  EXECUTE FUNCTION update_course_students_count();
 
--- تريجر تحديث عدد الكورسات لمقدم الخدمة
-DROP TRIGGER IF EXISTS trigger_update_provider_courses_count ON public.courses;
+-- Trigger: trigger_update_provider_courses_count
+-- Description: تحديث عدد الكورسات لمقدم الخدمة
 CREATE TRIGGER trigger_update_provider_courses_count
   AFTER INSERT OR DELETE ON public.courses
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_provider_courses_count();
+  EXECUTE FUNCTION update_provider_courses_count();
 
--- تريجر تحديث تاريخ إكمال التسجيل
-DROP TRIGGER IF EXISTS trigger_update_completed_at ON public.enrollments;
-CREATE TRIGGER trigger_update_completed_at
-  BEFORE UPDATE ON public.enrollments
-  FOR EACH ROW
-  EXECUTE FUNCTION public.update_enrollment_completed_at();
-
--- تريجر الإصدار التلقائي للشهادة
-DROP TRIGGER IF EXISTS trigger_auto_issue_certificate ON public.enrollments;
-CREATE TRIGGER trigger_auto_issue_certificate
-  AFTER UPDATE ON public.enrollments
-  FOR EACH ROW
-  EXECUTE FUNCTION public.auto_issue_certificate();
-
--- تريجر تحديث وقت التعديل لإعدادات الدفع
-DROP TRIGGER IF EXISTS trigger_update_provider_payment_settings_updated_at ON public.provider_payment_settings;
+-- Trigger: trigger_update_provider_payment_settings_updated_at
+-- Description: تحديث تاريخ آخر تعديل لإعدادات الدفع
 CREATE TRIGGER trigger_update_provider_payment_settings_updated_at
   BEFORE UPDATE ON public.provider_payment_settings
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_provider_payment_settings_updated_at();
+  EXECUTE FUNCTION update_provider_payment_settings_updated_at();
 
--- تريجر تفعيل RLS تلقائياً
-DROP EVENT TRIGGER IF EXISTS rls_auto_enable_trigger;
-CREATE EVENT TRIGGER rls_auto_enable_trigger
-  ON ddl_command_end
-  WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
-  EXECUTE FUNCTION public.rls_auto_enable();
+-- Trigger: trigger_auto_issue_certificate (enrollments)
+-- Description: إصدار الشهادة تلقائياً عند إكمال الكورس
+CREATE TRIGGER trigger_auto_issue_certificate
+  AFTER UPDATE OF completion_percentage ON public.enrollments
+  FOR EACH ROW
+  WHEN ((new.completion_percentage = 100) AND (old.completion_percentage < 100))
+  EXECUTE FUNCTION auto_issue_certificate();
 
--- ============================================
--- 8. Storage Buckets
--- ============================================
+-- Trigger: trigger_auto_issue_certificate (lesson_progress)
+-- Description: إصدار الشهادة تلقائياً عند إكمال درس
+CREATE TRIGGER trigger_auto_issue_certificate
+  AFTER INSERT OR UPDATE ON public.lesson_progress
+  FOR EACH ROW
+  WHEN ((new.is_completed = true))
+  EXECUTE FUNCTION auto_issue_certificate();
 
--- إنشاء Buckets للتخزين
-INSERT INTO storage.buckets (id, name, public) 
-VALUES 
-  ('avatars', 'avatars', true),
-  ('certificates', 'certificates', true),
-  ('course-videos', 'course-videos', true),
-  ('course-images', 'course-images', true),
-  ('course-files', 'course-files', true)
-ON CONFLICT (id) DO NOTHING;
+-- ============================================================================
+-- SECTION 7: ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
 
--- ============================================
--- 9. Storage Policies
--- ============================================
+-- Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lesson_resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificate_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.provider_payment_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
--- سياسات bucket الصور الشخصية (avatars)
-DROP POLICY IF EXISTS "Avatar images are publicly accessible" ON storage.objects;
-CREATE POLICY "Avatar images are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'avatars');
+-- RLS Policies for users table
+CREATE POLICY "Users can view own profile" ON public.users
+  FOR SELECT USING (auth.uid() = id);
 
-DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
-CREATE POLICY "Users can upload their own avatar"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'avatars' AND
-  auth.uid()::text = (storage.foldername(name))[1]
-);
+CREATE POLICY "Users can update own profile" ON public.users
+  FOR UPDATE USING (auth.uid() = id);
 
-DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
-CREATE POLICY "Users can update their own avatar"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'avatars' AND
-  auth.uid()::text = (storage.foldername(name))[1]
-);
+CREATE POLICY "Users can insert own profile" ON public.users
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
-DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
-CREATE POLICY "Users can delete their own avatar"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'avatars' AND
-  auth.uid()::text = (storage.foldername(name))[1]
-);
+CREATE POLICY "Everyone can view providers" ON public.users
+  FOR SELECT USING (user_type = 'provider' OR auth.uid() = id);
 
--- سياسات bucket الشهادات (certificates)
-DROP POLICY IF EXISTS "Certificates are publicly accessible" ON storage.objects;
-CREATE POLICY "Certificates are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'certificates');
+-- RLS Policies for courses table
+CREATE POLICY "Providers can view their courses" ON public.courses
+  FOR SELECT USING (provider_id = auth.uid());
 
-DROP POLICY IF EXISTS "Providers can upload certificates" ON storage.objects;
-CREATE POLICY "Providers can upload certificates"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'certificates' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can insert their courses" ON public.courses
+  FOR INSERT WITH CHECK (provider_id = auth.uid());
 
-DROP POLICY IF EXISTS "Providers can update certificates" ON storage.objects;
-CREATE POLICY "Providers can update certificates"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'certificates' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can update their courses" ON public.courses
+  FOR UPDATE USING (provider_id = auth.uid());
 
-DROP POLICY IF EXISTS "Providers can delete certificates" ON storage.objects;
-CREATE POLICY "Providers can delete certificates"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'certificates' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can delete their courses" ON public.courses
+  FOR DELETE USING (provider_id = auth.uid());
 
--- سياسات bucket فيديوهات الكورسات (course-videos)
-DROP POLICY IF EXISTS "Course videos are publicly accessible" ON storage.objects;
-CREATE POLICY "Course videos are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'course-videos');
+CREATE POLICY "Students can view published courses" ON public.courses
+  FOR SELECT USING (status = 'published' OR provider_id = auth.uid());
 
-DROP POLICY IF EXISTS "Providers can upload course videos" ON storage.objects;
-CREATE POLICY "Providers can upload course videos"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'course-videos' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+-- RLS Policies for modules table
+CREATE POLICY "Providers can view modules" ON public.modules
+  FOR SELECT USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can update course videos" ON storage.objects;
-CREATE POLICY "Providers can update course videos"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'course-videos' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can insert modules" ON public.modules
+  FOR INSERT WITH CHECK (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can delete course videos" ON storage.objects;
-CREATE POLICY "Providers can delete course videos"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'course-videos' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can update modules" ON public.modules
+  FOR UPDATE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
--- سياسات bucket صور الكورسات (course-images)
-DROP POLICY IF EXISTS "Course images are publicly accessible" ON storage.objects;
-CREATE POLICY "Course images are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'course-images');
+CREATE POLICY "Providers can delete modules" ON public.modules
+  FOR DELETE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can upload course images" ON storage.objects;
-CREATE POLICY "Providers can upload course images"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'course-images' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Students can view modules" ON public.modules
+  FOR SELECT USING (
+    course_id IN (SELECT id FROM courses WHERE status = 'published') 
+    OR course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
+  );
 
-DROP POLICY IF EXISTS "Providers can update course images" ON storage.objects;
-CREATE POLICY "Providers can update course images"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'course-images' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+-- RLS Policies for lessons table
+CREATE POLICY "Providers can view lessons" ON public.lessons
+  FOR SELECT USING (module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can delete course images" ON storage.objects;
-CREATE POLICY "Providers can delete course images"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'course-images' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can insert lessons" ON public.lessons
+  FOR INSERT WITH CHECK (module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid()));
 
--- سياسات bucket ملفات الكورسات (course-files)
-DROP POLICY IF EXISTS "Course files are publicly accessible" ON storage.objects;
-CREATE POLICY "Course files are publicly accessible"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'course-files');
+CREATE POLICY "Providers can update lessons" ON public.lessons
+  FOR UPDATE USING (module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can upload course files" ON storage.objects;
-CREATE POLICY "Providers can upload course files"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'course-files' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Providers can delete lessons" ON public.lessons
+  FOR DELETE USING (module_id IN (SELECT m.id FROM modules m JOIN courses c ON m.course_id = c.id WHERE c.provider_id = auth.uid()));
 
-DROP POLICY IF EXISTS "Providers can update course files" ON storage.objects;
-CREATE POLICY "Providers can update course files"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'course-files' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+CREATE POLICY "Students can view lessons" ON public.lessons
+  FOR SELECT USING (
+    course_id IN (SELECT id FROM courses WHERE status = 'published')
+    OR course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid())
+  );
 
-DROP POLICY IF EXISTS "Providers can delete course files" ON storage.objects;
-CREATE POLICY "Providers can delete course files"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'course-files' AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid() AND user_type IN ('provider', 'admin')
-  )
-);
+-- RLS Policies for lesson_resources table
+CREATE POLICY "Providers can add lesson resources" ON public.lesson_resources
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id 
+    WHERE l.id = lesson_resources.lesson_id AND c.provider_id = auth.uid()
+  ));
 
--- ============================================
--- 10. ملاحظات مهمة
--- ============================================
+CREATE POLICY "Providers can update lesson resources" ON public.lesson_resources
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id 
+    WHERE l.id = lesson_resources.lesson_id AND c.provider_id = auth.uid()
+  ));
 
-/*
-ملاحظات الاستخدام:
------------------
+CREATE POLICY "Providers can delete lesson resources" ON public.lesson_resources
+  FOR DELETE USING (EXISTS (
+    SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id 
+    WHERE l.id = lesson_resources.lesson_id AND c.provider_id = auth.uid()
+  ));
 
-1. قبل تشغيل هذا الملف، تأكد من:
-   - إنشاء مشروع Supabase جديد
-   - الحصول على معلومات الاتصال (URL و API Keys)
+CREATE POLICY "Students can view lesson resources" ON public.lesson_resources
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM enrollments e JOIN lessons l ON l.course_id = e.course_id 
+      WHERE l.id = lesson_resources.lesson_id AND e.student_id = auth.uid() AND e.status = 'active'
+    )
+    OR EXISTS (
+      SELECT 1 FROM lessons l JOIN courses c ON c.id = l.course_id 
+      WHERE l.id = lesson_resources.lesson_id AND c.provider_id = auth.uid()
+    )
+  );
 
-2. لتشغيل هذا الملف:
-   - يمكنك استخدام Supabase Dashboard > SQL Editor
-   - أو استخدام Supabase CLI: supabase db push
 
-3. بعد تشغيل الملف:
-   - تحقق من إنشاء جميع الجداول
-   - تحقق من تفعيل RLS على جميع الجداول
-   - تحقق من إنشاء Storage Buckets
+-- RLS Policies for enrollments table
+CREATE POLICY "Users can view their own enrollments" ON public.enrollments
+  FOR SELECT TO authenticated USING (student_id = auth.uid());
 
-4. الإعدادات المطلوبة في التطبيق:
-   - SUPABASE_URL: رابط مشروع Supabase
-   - SUPABASE_ANON_KEY: المفتاح العام (anon key)
+CREATE POLICY "Users can insert their own enrollments" ON public.enrollments
+  FOR INSERT TO authenticated WITH CHECK (
+    student_id = auth.uid() 
+    AND EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND status = 'published')
+  );
 
-5. الأمان:
-   - جميع الجداول محمية بـ RLS
-   - Storage Buckets محمية بسياسات الوصول
-   - الدوال محمية بـ SECURITY DEFINER
+CREATE POLICY "Users can update their own enrollments" ON public.enrollments
+  FOR UPDATE TO authenticated USING (student_id = auth.uid()) WITH CHECK (student_id = auth.uid());
 
-6. النسخ الاحتياطي:
-   - احتفظ بنسخة من هذا الملف في مكان آمن
-   - قم بعمل نسخ احتياطية دورية من قاعدة البيانات
+CREATE POLICY "Students can view their enrollments" ON public.enrollments
+  FOR SELECT USING (student_id = auth.uid());
 
-7. التحديثات المستقبلية:
-   - عند إضافة جداول جديدة، أضفها لهذا الملف
-   - عند تعديل السياسات، حدّث هذا الملف
-   - احتفظ بسجل للتغييرات (changelog)
+CREATE POLICY "Providers can view enrollments for their courses" ON public.enrollments
+  FOR SELECT TO authenticated USING (EXISTS (
+    SELECT 1 FROM courses WHERE courses.id = enrollments.course_id AND courses.provider_id = auth.uid()
+  ));
 
-8. استعادة قاعدة البيانات:
-   - في حالة فقدان البيانات، قم بإنشاء مشروع جديد
-   - شغّل هذا الملف بالكامل
-   - استعد البيانات من النسخة الاحتياطية
+CREATE POLICY "Providers can view their students" ON public.enrollments
+  FOR SELECT USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-9. الدعم الفني:
-   - للمساعدة: https://supabase.com/docs
-   - المجتمع: https://github.com/supabase/supabase/discussions
+CREATE POLICY "Providers can update enrollments" ON public.enrollments
+  FOR UPDATE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-10. معلومات المشروع:
-    - اسم المشروع: Wasla Academy
-    - النسخة: 1.0.0
-    - تاريخ الإنشاء: 2026-04-13
-    - المطور: Wasla Academy Team
-*/
+-- RLS Policies for lesson_progress table
+CREATE POLICY "Students can view their progress" ON public.lesson_progress
+  FOR SELECT USING (student_id = auth.uid());
 
--- ============================================
--- نهاية الملف
--- ============================================
+-- RLS Policies for exams table
+CREATE POLICY "Providers can view exams" ON public.exams
+  FOR SELECT USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
--- تم إنشاء هذا الملف بنجاح!
--- يحتوي على كامل بنية قاعدة بيانات Wasla Academy
--- بما في ذلك: الجداول، الفهارس، السياسات، الدوال، التريجرز، و Storage Buckets
+CREATE POLICY "Providers can insert exams" ON public.exams
+  FOR INSERT WITH CHECK (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
 
-SELECT 'Database backup file created successfully!' AS status;
+CREATE POLICY "Providers can update exams" ON public.exams
+  FOR UPDATE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+CREATE POLICY "Providers can delete exams" ON public.exams
+  FOR DELETE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+-- RLS Policies for exam_questions table
+CREATE POLICY "Providers can view exam questions" ON public.exam_questions
+  FOR SELECT USING (exam_id IN (
+    SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid()
+  ));
+
+CREATE POLICY "Providers can insert exam questions" ON public.exam_questions
+  FOR INSERT WITH CHECK (exam_id IN (
+    SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid()
+  ));
+
+CREATE POLICY "Providers can update exam questions" ON public.exam_questions
+  FOR UPDATE USING (exam_id IN (
+    SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid()
+  ));
+
+CREATE POLICY "Providers can delete exam questions" ON public.exam_questions
+  FOR DELETE USING (exam_id IN (
+    SELECT e.id FROM exams e JOIN courses c ON e.course_id = c.id WHERE c.provider_id = auth.uid()
+  ));
+
+-- RLS Policies for exam_results table
+CREATE POLICY "Students can view their exam results" ON public.exam_results
+  FOR SELECT USING (student_id = auth.uid());
+
+CREATE POLICY "Providers can view exam results for their courses" ON public.exam_results
+  FOR SELECT USING (exam_id IN (
+    SELECT exams.id FROM exams WHERE exams.course_id IN (
+      SELECT courses.id FROM courses WHERE courses.provider_id = auth.uid()
+    )
+  ));
+
+-- RLS Policies for certificates table
+CREATE POLICY "Students can view their certificates" ON public.certificates
+  FOR SELECT USING (student_id = auth.uid());
+
+CREATE POLICY "Students can view own certificates" ON public.certificates
+  FOR SELECT USING (
+    student_id = auth.uid() 
+    OR provider_id = auth.uid() 
+    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
+  );
+
+CREATE POLICY "Providers can view certificates" ON public.certificates
+  FOR SELECT USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+CREATE POLICY "Providers can insert certificates" ON public.certificates
+  FOR INSERT WITH CHECK (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+CREATE POLICY "Providers can update certificates" ON public.certificates
+  FOR UPDATE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+-- RLS Policies for certificate_templates table
+CREATE POLICY "Providers can view their templates" ON public.certificate_templates
+  FOR SELECT USING (provider_id = auth.uid());
+
+CREATE POLICY "Providers can insert their templates" ON public.certificate_templates
+  FOR INSERT WITH CHECK (provider_id = auth.uid());
+
+CREATE POLICY "Providers can update their templates" ON public.certificate_templates
+  FOR UPDATE USING (provider_id = auth.uid());
+
+CREATE POLICY "Providers can delete their templates" ON public.certificate_templates
+  FOR DELETE USING (provider_id = auth.uid());
+
+-- RLS Policies for payments table
+CREATE POLICY "Students can view own payments" ON public.payments
+  FOR SELECT USING (
+    student_id = auth.uid() 
+    OR provider_id = auth.uid() 
+    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
+  );
+
+CREATE POLICY "Providers can view payments" ON public.payments
+  FOR SELECT USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+CREATE POLICY "Providers can update payments" ON public.payments
+  FOR UPDATE USING (course_id IN (SELECT id FROM courses WHERE provider_id = auth.uid()));
+
+-- RLS Policies for provider_payment_settings table
+CREATE POLICY "Providers can view their payment settings" ON public.provider_payment_settings
+  FOR SELECT USING (provider_id = auth.uid());
+
+CREATE POLICY "Providers can insert their payment settings" ON public.provider_payment_settings
+  FOR INSERT WITH CHECK (provider_id = auth.uid());
+
+CREATE POLICY "Providers can update their payment settings" ON public.provider_payment_settings
+  FOR UPDATE USING (provider_id = auth.uid());
+
+CREATE POLICY "provider_payment_settings_select_policy" ON public.provider_payment_settings
+  FOR SELECT USING (provider_id = auth.uid());
+
+CREATE POLICY "provider_payment_settings_insert_policy" ON public.provider_payment_settings
+  FOR INSERT WITH CHECK (provider_id = auth.uid());
+
+CREATE POLICY "provider_payment_settings_update_policy" ON public.provider_payment_settings
+  FOR UPDATE USING (provider_id = auth.uid());
+
+-- RLS Policies for notifications table
+CREATE POLICY "Students can view their notifications" ON public.notifications
+  FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert notifications" ON public.notifications
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their notifications" ON public.notifications
+  FOR UPDATE USING (user_id = auth.uid());
+
+-- RLS Policies for reviews table
+CREATE POLICY "Students can view all reviews" ON public.reviews
+  FOR SELECT USING (true);
+
+CREATE POLICY "Students can add reviews" ON public.reviews
+  FOR INSERT WITH CHECK (
+    auth.uid() = student_id 
+    AND EXISTS (
+      SELECT 1 FROM enrollments 
+      WHERE enrollments.student_id = auth.uid() 
+      AND enrollments.course_id = reviews.course_id 
+      AND enrollments.status IN ('active', 'completed')
+    )
+  );
+
+CREATE POLICY "Students can update own reviews" ON public.reviews
+  FOR UPDATE USING (auth.uid() = student_id);
+
+CREATE POLICY "Students can delete own reviews" ON public.reviews
+  FOR DELETE USING (
+    auth.uid() = student_id 
+    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin')
+  );
+
+-- RLS Policies for app_settings table
+CREATE POLICY "Users can view their settings" ON public.app_settings
+  FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert their settings" ON public.app_settings
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their settings" ON public.app_settings
+  FOR UPDATE USING (user_id = auth.uid());
+
+-- RLS Policies for waitlist table
+CREATE POLICY "Enable read access for all users" ON public.waitlist
+  FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can join waitlist" ON public.waitlist
+  FOR INSERT WITH CHECK (
+    email IS NOT NULL 
+    AND email <> '' 
+    AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+  );
+
+CREATE POLICY "Allow select for authenticated users" ON public.waitlist
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow update for authenticated users" ON public.waitlist
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Only admins can view waitlist" ON public.waitlist
+  FOR SELECT USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "Only admins can update waitlist" ON public.waitlist
+  FOR UPDATE USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "Only admins can delete waitlist" ON public.waitlist
+  FOR DELETE USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin'));
+
+-- RLS Policies for audit_log table
+CREATE POLICY "Only admins can view audit log" ON public.audit_log
+  FOR SELECT USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND user_type = 'admin'));
+
+-- ============================================================================
+-- SECTION 8: STORAGE BUCKETS
+-- ============================================================================
+
+-- Note: Storage buckets are managed through Supabase Storage API
+-- The following are the bucket configurations that should be created:
+
+-- Bucket: avatars
+-- Description: صور المستخدمين الشخصية
+-- Public: true
+-- File size limit: null (unlimited)
+-- Allowed MIME types: null (all types)
+
+-- Bucket: certificates
+-- Description: ملفات الشهادات
+-- Public: true
+-- File size limit: null (unlimited)
+-- Allowed MIME types: null (all types)
+
+-- Bucket: course-files
+-- Description: ملفات الكورسات (مستندات، ملفات مرفقة)
+-- Public: true
+-- File size limit: null (unlimited)
+-- Allowed MIME types: null (all types)
+
+-- Bucket: course-images
+-- Description: صور الكورسات (أغلفة، صور توضيحية)
+-- Public: true
+-- File size limit: null (unlimited)
+-- Allowed MIME types: null (all types)
+
+-- Bucket: course-videos
+-- Description: فيديوهات الكورسات
+-- Public: true
+-- File size limit: null (unlimited)
+-- Allowed MIME types: null (all types)
+
+-- To create these buckets, use the Supabase Dashboard or API:
+-- INSERT INTO storage.buckets (id, name, public) VALUES 
+--   ('avatars', 'avatars', true),
+--   ('certificates', 'certificates', true),
+--   ('course-files', 'course-files', true),
+--   ('course-images', 'course-images', true),
+--   ('course-videos', 'course-videos', true);
+
+-- ============================================================================
+-- SECTION 9: AUTH TRIGGERS
+-- ============================================================================
+
+-- Note: This trigger should be created on auth.users table
+-- It automatically creates a user record in public.users when a new user signs up
+
+-- CREATE TRIGGER on_auth_user_created
+--   AFTER INSERT ON auth.users
+--   FOR EACH ROW
+--   EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================================================
+-- SECTION 10: ADDITIONAL NOTES
+-- ============================================================================
+
+-- 1. Extensions:
+--    - uuid-ossp: For UUID generation
+--    - pgcrypto: For cryptographic functions
+--    - pg_stat_statements: For query performance monitoring
+--    - pg_graphql: For GraphQL support
+--    - supabase_vault: For secure secrets storage
+
+-- 2. Row Level Security (RLS):
+--    - All tables have RLS enabled
+--    - Policies are configured to ensure data isolation between users
+--    - Providers can only access their own courses and related data
+--    - Students can only access their own enrollments and progress
+--    - Admins have full access to audit logs
+
+-- 3. Triggers:
+--    - Auto-generate verification codes for certificates
+--    - Auto-update completion dates when progress reaches 100%
+--    - Auto-update student/course counts
+--    - Auto-issue certificates when conditions are met
+
+-- 4. Functions:
+--    - Certificate verification code generation
+--    - Student eligibility checking
+--    - Payment status updates with notifications
+--    - User permission checking
+
+-- 5. Storage Buckets:
+--    - avatars: User profile images
+--    - certificates: Certificate files
+--    - course-files: Course documents and attachments
+--    - course-images: Course cover images and thumbnails
+--    - course-videos: Course video content
+
+-- 6. Indexes:
+--    - Optimized for common query patterns
+--    - Composite indexes for frequently joined columns
+--    - Unique indexes for business constraints
+
+-- ============================================================================
+-- END OF BACKUP FILE
+-- ============================================================================
+
+-- To restore this database:
+-- 1. Create a new Supabase project
+-- 2. Run this SQL file in the SQL Editor
+-- 3. Create storage buckets through the Dashboard or API
+-- 4. Configure auth triggers if needed
+-- 5. Test all functionality
+
+-- For questions or issues, refer to Supabase documentation:
+-- https://supabase.com/docs

@@ -418,7 +418,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.folder_open_rounded,
                     size: 80,
                     color: AppColors.textLight,
@@ -476,7 +476,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                       child: Center(
                         child: Text(
                           '${index + 1}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -519,7 +519,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                           children: [
                             Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.play_circle_outline_rounded,
                                   size: 20,
                                   color: AppColors.primary,
@@ -553,7 +553,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.error_outline_rounded,
                 size: 64,
                 color: AppColors.textLight,
@@ -595,7 +595,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.lightbulb_outline_rounded,
                       color: AppColors.primary,
                       size: 24,
@@ -682,7 +682,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
@@ -690,7 +690,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -735,7 +735,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                   children: [
                     Text(
                       _course!.rating.toStringAsFixed(1),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 56,
                         fontWeight: FontWeight.bold,
                         color: AppColors.warning,
@@ -757,7 +757,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                     const SizedBox(height: 8),
                     Text(
                       '${_course!.reviewsCount} تقييم',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
@@ -793,7 +793,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                     color: AppColors.info.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.rate_review_outlined,
                     size: 48,
                     color: AppColors.info,
@@ -824,14 +824,14 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         children: [
           Text(
             '$stars',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(width: 4),
-          Icon(
+          const Icon(
             Icons.star_rounded,
             size: 14,
             color: AppColors.warning,
@@ -843,7 +843,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               child: LinearProgressIndicator(
                 value: percentage,
                 backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.warning),
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.warning),
                 minHeight: 6,
               ),
             ),
@@ -851,7 +851,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           const SizedBox(width: 8),
           Text(
             '${(percentage * 100).toInt()}%',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,

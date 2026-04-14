@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../network/api_client.dart';
 import '../network/network_info.dart';
 import '../services/local_storage_service.dart';
+import '../services/session_manager.dart';
 
 // Auth
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -102,6 +103,14 @@ Future<void> init() async {
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
   sl.registerLazySingleton<SupabaseClient>(() => ApiClient.instance);
 
+  // Session Manager
+  sl.registerLazySingleton<SessionManager>(
+    () => SessionManager(
+      supabaseClient: sl(),
+      localStorage: sl(),
+    ),
+  );
+
   // ============ Auth Feature ============
   // Bloc
   sl.registerFactory(() => AuthBloc(
@@ -111,6 +120,7 @@ Future<void> init() async {
         resetPasswordUseCase: sl(),
         getCurrentUserUseCase: sl(),
         localStorageService: sl(),
+        sessionManager: sl(),
       ));
 
   // Use cases

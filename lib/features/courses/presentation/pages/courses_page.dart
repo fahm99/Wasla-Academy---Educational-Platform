@@ -551,7 +551,7 @@ class _CoursesPageState extends State<CoursesPage>
                           color: AppColors.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
@@ -562,7 +562,7 @@ class _CoursesPageState extends State<CoursesPage>
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Icon(
                               Icons.arrow_forward_rounded,
                               size: 16,
@@ -594,7 +594,7 @@ class _CoursesPageState extends State<CoursesPage>
         const SizedBox(width: 6),
         Text(
           text,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 13,
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w500,

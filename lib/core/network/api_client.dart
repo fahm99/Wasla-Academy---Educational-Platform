@@ -1,41 +1,11 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_config.dart';
 
 /// عميل API للتعامل مع Supabase
 class ApiClient {
-  static SupabaseClient? _instance;
-
   /// الحصول على instance من Supabase Client
   static SupabaseClient get instance {
-    if (_instance == null) {
-      throw Exception(
-          'Supabase client not initialized. Call initialize() first.');
-    }
-    return _instance!;
-  }
-
-  /// تهيئة Supabase Client
-  static Future<void> initialize() async {
-    if (!SupabaseConfig.isConfigured()) {
-      throw Exception(
-        'Supabase is not configured. Please update supabase_config.dart with your project credentials.',
-      );
-    }
-
-    await Supabase.initialize(
-      url: SupabaseConfig.supabaseUrl,
-      anonKey: SupabaseConfig.supabaseAnonKey,
-      authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.pkce,
-        autoRefreshToken: SupabaseConfig.autoRefreshToken,
-      ),
-      realtimeClientOptions: const RealtimeClientOptions(
-        eventsPerSecond: 10,
-      ),
-    );
-
-    _instance = Supabase.instance.client;
+    return Supabase.instance.client;
   }
 
   /// الحصول على Auth Client
@@ -101,6 +71,5 @@ class ApiClient {
   /// إغلاق الاتصال
   static Future<void> dispose() async {
     await instance.dispose();
-    _instance = null;
   }
 }

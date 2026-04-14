@@ -59,12 +59,9 @@ class _RegisterPageState extends State<RegisterPage> {
           return previous.runtimeType != current.runtimeType;
         },
         listener: (context, state) {
-          debugPrint('🔄 Auth state changed: ${state.runtimeType}');
           if (state is AuthError) {
-            debugPrint('❌ Auth error: ${state.message}');
             Helpers.showErrorSnackbar(context, state.message);
           } else if (state is Authenticated) {
-            debugPrint('✅ Authenticated: ${state.user.name}');
             Helpers.showSuccessSnackbar(
                 context, 'تم إنشاء الحساب بنجاح! مرحباً ${state.user.name}');
             // التوجيه الفوري بدون تأخير

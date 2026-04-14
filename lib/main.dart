@@ -1,69 +1,132 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:ui';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:async';
 
-import 'core/network/api_client.dart';
+// Core
+import 'core/config/supabase_config.dart';
 import 'core/constants/app_colors.dart';
 import 'core/di/injection_container.dart' as di;
+import 'core/services/session_manager.dart';
 
-// Blocs
+// Features - Auth
 import 'features/auth/presentation/bloc/auth_bloc.dart';
-import 'features/courses/presentation/bloc/courses_bloc.dart';
-import 'features/payments/presentation/bloc/payments_bloc.dart';
-import 'features/learning/presentation/bloc/learning_bloc.dart';
-import 'features/exams/presentation/bloc/exams_bloc.dart';
-import 'features/certificates/presentation/bloc/certificates_bloc.dart';
-import 'features/notifications/presentation/bloc/notifications_bloc.dart';
-import 'features/profile/presentation/bloc/profile_bloc.dart';
-
-// Screens
-import 'features/splash/presentation/pages/splash_screen.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/register_page.dart';
+import 'features/auth/presentation/pages/forgot_password_page.dart';
+import 'features/auth/presentation/pages/verification_screen.dart';
+
+// Features - Splash
+import 'features/splash/presentation/pages/splash_screen.dart';
+
+// Features - Home
 import 'features/home/presentation/pages/main_page.dart';
+import 'features/home/presentation/pages/home_page.dart';
+
+// Features - Courses
+import 'features/courses/presentation/bloc/courses_bloc.dart';
+import 'features/courses/presentation/pages/courses_page.dart';
+import 'features/courses/presentation/pages/course_detail_page.dart';
+import 'features/courses/presentation/pages/my_courses_page.dart';
+
+// Features - Learning
+import 'features/learning/presentation/bloc/learning_bloc.dart';
+import 'features/learning/presentation/pages/course_content_page.dart';
+import 'features/learning/presentation/pages/lesson_viewer_page.dart';
+
+// Features - Exams
+import 'features/exams/presentation/bloc/exams_bloc.dart';
+import 'features/exams/presentation/pages/course_exams_page.dart';
+import 'features/exams/presentation/pages/exam_page.dart';
+
+// Features - Payments
+import 'features/payments/presentation/bloc/payments_bloc.dart';
+import 'features/payments/presentation/pages/payment_info_page.dart';
+import 'features/payments/presentation/pages/payment_upload_page.dart';
+import 'features/payments/presentation/pages/payment_status_page.dart';
+import 'features/payments/presentation/pages/my_payments_page.dart';
+
+// Features - Certificates
+import 'features/certificates/presentation/bloc/certificates_bloc.dart';
+import 'features/certificates/presentation/pages/certificates_page.dart';
+import 'features/certificates/presentation/pages/certificate_detail_page.dart';
+import 'features/certificates/domain/entities/certificate.dart';
+
+// Features - Notifications
+import 'features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'features/notifications/presentation/pages/notifications_page.dart';
+
+// Features - Profile
+import 'features/profile/presentation/bloc/profile_bloc.dart';
+import 'features/profile/presentation/pages/profile_page.dart';
+
+// Features - Settings & Info
+import 'features/settings/presentation/pages/settings_screen.dart';
 import 'features/info/presentation/pages/about_screen.dart';
 import 'features/info/presentation/pages/contact_screen.dart';
 import 'features/info/presentation/pages/help_screen.dart';
 import 'features/info/presentation/pages/terms_screen.dart';
-import 'features/settings/presentation/pages/settings_screen.dart';
-import 'features/payments/presentation/pages/payment_info_page.dart';
 
 void main() async {
+  // تهيئة Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
-  // معالجة الأخطاء العامة
+  // Global Error Handler
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    debugPrint('❌ Flutter Error: ${details.exception}');
+    // TODO: Send to Crashlytics in production
+    debugPrint('Flutter Error: ${details.exception}');
     debugPrint('Stack trace: ${details.stack}');
   };
 
-  // معالجة الأخطاء غير المتزامنة
-  PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('❌ Platform Error: $error');
+  // Async Error Handler
+  runZonedGuarded(() async {
+    try {
+      // تحميل متغيرات البيئة
+      await dotenv.load(fileName: ".env");
+
+      // Initialize Supabase
+      await Supabase.initialize(
+        url: SupabaseConfig.supabaseUrl,
+        anonKey: SupabaseConfig.supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
+      );
+
+      // Initialize dependency injection
+      await di.init();
+
+      // Set preferred orientations
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+
+      // Set system UI overlay style
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+      );
+
+      runApp(const MyApp());
+    } catch (e, stackTrace) {
+      debugPrint('Error during app initialization: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // TODO: Send to Crashlytics
+    }
+  }, (error, stack) {
+    debugPrint('Async error: $error');
     debugPrint('Stack trace: $stack');
-    return true;
-  };
-
-  // تهيئة Supabase
-  try {
-    await ApiClient.initialize();
-    debugPrint('✅ Supabase initialized successfully');
-  } catch (e) {
-    debugPrint('❌ Supabase initialization failed: $e');
-  }
-
-  // تهيئة Dependency Injection
-  try {
-    await di.init();
-    debugPrint('✅ Dependency Injection initialized successfully');
-  } catch (e) {
-    debugPrint('❌ Dependency Injection initialization failed: $e');
-  }
-
-  runApp(const MyApp());
+    // TODO: Send to Crashlytics
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -73,145 +136,286 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-            create: (_) => di.sl<AuthBloc>()..add(const LoadCurrentUser())),
-        BlocProvider(create: (_) => di.sl<CoursesBloc>()),
-        BlocProvider(create: (_) => di.sl<PaymentsBloc>()),
-        BlocProvider(create: (_) => di.sl<LearningBloc>()),
-        BlocProvider(create: (_) => di.sl<ExamsBloc>()),
-        BlocProvider(create: (_) => di.sl<CertificatesBloc>()),
-        BlocProvider(create: (_) => di.sl<NotificationsBloc>()),
-        BlocProvider(create: (_) => di.sl<ProfileBloc>()),
+        BlocProvider<AuthBloc>(
+          create: (context) => di.sl<AuthBloc>()..add(const LoadCurrentUser()),
+        ),
+        BlocProvider<CoursesBloc>(
+          create: (context) => di.sl<CoursesBloc>(),
+        ),
+        BlocProvider<LearningBloc>(
+          create: (context) => di.sl<LearningBloc>(),
+        ),
+        BlocProvider<ExamsBloc>(
+          create: (context) => di.sl<ExamsBloc>(),
+        ),
+        BlocProvider<PaymentsBloc>(
+          create: (context) => di.sl<PaymentsBloc>(),
+        ),
+        BlocProvider<CertificatesBloc>(
+          create: (context) => di.sl<CertificatesBloc>(),
+        ),
+        BlocProvider<NotificationsBloc>(
+          create: (context) => di.sl<NotificationsBloc>(),
+        ),
+        BlocProvider<ProfileBloc>(
+          create: (context) => di.sl<ProfileBloc>(),
+        ),
       ],
-      child: ScreenUtilInit(
-        designSize: const Size(375, 812),
-        minTextAdapt: true,
-        splitScreenMode: true,
-        useInheritedMediaQuery: true,
-        rebuildFactor: RebuildFactors.change,
-        ensureScreenSize: true,
-        builder: (context, child) {
-          return MaterialApp(
-            title: 'منصة وصلة أكاديمي (Wasla Academy)',
-            theme: ThemeData(
-              primaryColor: AppColors.primary,
-              scaffoldBackgroundColor: AppColors.light,
-              fontFamily: 'Cairo',
+      child: Builder(
+        builder: (context) {
+          // تتبع نشاط المستخدم لإدارة الجلسة
+          return GestureDetector(
+            onTap: () => _updateSessionActivity(),
+            onPanDown: (_) => _updateSessionActivity(),
+            onScaleStart: (_) => _updateSessionActivity(),
+            behavior: HitTestBehavior.translucent,
+            child: MaterialApp(
+              title: 'منصة وصلة أكاديمي',
+              debugShowCheckedModeBanner: false,
+
+              // Theme
+              theme: ThemeData(
+                primaryColor: AppColors.primary,
+                scaffoldBackgroundColor: AppColors.light,
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: AppColors.primary,
+                  primary: AppColors.primary,
+                  secondary: AppColors.secondary,
+                ),
+                fontFamily: 'Cairo',
+                useMaterial3: true,
+
+                // AppBar Theme
+                appBarTheme: const AppBarTheme(
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  centerTitle: true,
+                  iconTheme: IconThemeData(color: AppColors.textPrimary),
+                  titleTextStyle: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                  ),
+                ),
+
+                // Input Decoration Theme
+                inputDecorationTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.error),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+
+                // Elevated Button Theme
+                elevatedButtonTheme: ElevatedButtonThemeData(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo',
+                    ),
+                  ),
+                ),
+
+                // Card Theme
+                cardTheme: CardTheme(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+
+              // Localization
+              locale: const Locale('ar', 'SA'),
+              supportedLocales: const [
+                Locale('ar', 'SA'),
+                Locale('en', 'US'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+
+              // Routes
+              initialRoute: '/',
+              routes: {
+                '/': (context) => const SplashScreen(),
+                '/login': (context) => const LoginPage(),
+                '/register': (context) => const RegisterPage(),
+                '/forgot-password': (context) => const ForgotPasswordPage(),
+                // Verification screen requires email parameter, use onGenerateRoute
+                '/main': (context) => const MainPage(),
+                '/home': (context) => const HomePage(),
+                '/courses': (context) => const CoursesPage(),
+                '/my-courses': (context) => const MyCoursesPage(),
+                '/certificates': (context) => const CertificatesPage(),
+                '/notifications': (context) => const NotificationsPage(),
+                '/profile': (context) => const ProfilePage(),
+                '/settings': (context) => const SettingsScreen(),
+                '/about': (context) => const AboutScreen(),
+                '/contact': (context) => const ContactScreen(),
+                '/help': (context) => const HelpScreen(),
+                '/terms': (context) => const TermsScreen(),
+                '/my-payments': (context) => const MyPaymentsPage(),
+              },
+
+              // On Generate Route for dynamic routes
+              onGenerateRoute: (settings) {
+                // Verification Screen
+                if (settings.name == '/verification') {
+                  final email = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (context) => VerificationScreen(email: email),
+                  );
+                }
+
+                // Course Detail
+                if (settings.name == '/course-detail') {
+                  final courseId = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (context) => CourseDetailPage(courseId: courseId),
+                  );
+                }
+
+                // Course Content
+                if (settings.name == '/course-content') {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (context) => CourseContentPage(
+                      courseId: args['courseId'] as String,
+                      courseTitle: args['courseTitle'] as String,
+                    ),
+                  );
+                }
+
+                // Lesson Viewer
+                if (settings.name == '/lesson-viewer') {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (context) => LessonViewerPage(
+                      lessonId: args['lessonId'] as String,
+                      lessonTitle: args['lessonTitle'] as String,
+                      lessonType: args['lessonType'] as String,
+                      courseId: args['courseId'] as String,
+                    ),
+                  );
+                }
+
+                // Course Exams
+                if (settings.name == '/course-exams') {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (context) => CourseExamsPage(
+                      courseId: args['courseId'] as String,
+                      courseTitle: args['courseTitle'] as String,
+                    ),
+                  );
+                }
+
+                // Exam Page
+                if (settings.name == '/exam') {
+                  final examId = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (context) => ExamPage(
+                      examId: examId,
+                    ),
+                  );
+                }
+
+                // Payment Info
+                if (settings.name == '/payment-info') {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (context) => PaymentInfoPage(
+                      providerId: args['providerId'] as String,
+                      courseId: args['courseId'] as String,
+                      courseName: args['courseName'] as String,
+                      amount: args['amount'] as double,
+                    ),
+                  );
+                }
+
+                // Payment Upload
+                if (settings.name == '/payment-upload') {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute(
+                    builder: (context) => PaymentUploadPage(
+                      courseId: args['courseId'] as String,
+                      courseName: args['courseName'] as String,
+                      amount: args['amount'] as double,
+                      acceptBankTransfer: args['acceptBankTransfer'] as bool,
+                      acceptLocalTransfer: args['acceptLocalTransfer'] as bool,
+                    ),
+                  );
+                }
+
+                // Payment Status
+                if (settings.name == '/payment-status') {
+                  final paymentId = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (context) =>
+                        PaymentStatusPage(paymentId: paymentId),
+                  );
+                }
+
+                // Certificate Detail
+                if (settings.name == '/certificate-detail') {
+                  final certificate = settings.arguments as Certificate;
+                  return MaterialPageRoute(
+                    builder: (context) => CertificateDetailPage(
+                      certificate: certificate,
+                    ),
+                  );
+                }
+
+                return null;
+              },
             ),
-            locale: const Locale('ar'),
-            supportedLocales: const [
-              Locale('ar', ''),
-              Locale('en', ''),
-            ],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            builder: (context, child) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: child!,
-              );
-            },
-            initialRoute: '/',
-            routes: {
-              '/': (context) => const AuthWrapper(),
-              '/login': (context) => const LoginPage(),
-              '/main': (context) {
-                final args = ModalRoute.of(context)?.settings.arguments
-                    as Map<String, dynamic>?;
-                return MainPage(initialTab: args?['initialTab']);
-              },
-              '/payment-info': (context) {
-                final args = ModalRoute.of(context)?.settings.arguments
-                    as Map<String, dynamic>?;
-                return PaymentInfoPage(
-                  providerId: args?['providerId'] ?? '',
-                  courseId: args?['courseId'] ?? '',
-                  courseName: args?['courseName'] ?? '',
-                  amount: args?['amount'] ?? 0.0,
-                );
-              },
-              '/about': (context) => const AboutScreen(),
-              '/contact': (context) => const ContactScreen(),
-              '/help': (context) => const HelpScreen(),
-              '/terms': (context) => const TermsScreen(),
-              '/settings': (context) => const SettingsScreen(),
-            },
-            debugShowCheckedModeBanner: false,
           );
         },
       ),
     );
   }
-}
 
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        if (state is AuthLoading || state is AuthInitial) {
-          return const SplashScreen();
-        }
-
-        if (state is Authenticated) {
-          return const MainPage();
-        }
-
-        return const LoginPage();
-      },
-    );
-  }
-}
-
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.construction,
-              size: 60,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'قيد التطوير',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'هذه الصفحة قيد التطوير وسيتم إضافتها قريباً',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+  /// تحديث نشاط المستخدم في SessionManager
+  void _updateSessionActivity() {
+    try {
+      final sessionManager = di.sl<SessionManager>();
+      sessionManager.updateActivity();
+    } catch (e) {
+      // SessionManager قد لا يكون متاحاً في بعض الحالات
+    }
   }
 }

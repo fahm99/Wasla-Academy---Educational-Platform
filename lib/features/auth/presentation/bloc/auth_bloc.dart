@@ -7,6 +7,7 @@ import '../../domain/usecases/sign_out_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../../../core/services/local_storage_service.dart';
+import '../../../../core/services/session_manager.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -18,6 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ResetPasswordUseCase resetPasswordUseCase;
   final GetCurrentUserUseCase getCurrentUserUseCase;
   final LocalStorageService localStorageService;
+  final SessionManager sessionManager;
 
   AuthBloc({
     required this.signInUseCase,
@@ -26,6 +28,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.resetPasswordUseCase,
     required this.getCurrentUserUseCase,
     required this.localStorageService,
+    required this.sessionManager,
   }) : super(AuthInitial()) {
     on<SignInRequested>(_onSignInRequested);
     on<SignUpRequested>(_onSignUpRequested);
@@ -33,6 +36,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ResetPasswordRequested>(_onResetPasswordRequested);
     on<LoadCurrentUser>(_onLoadCurrentUser);
     on<CheckAuthStatus>(_onCheckAuthStatus);
+    on<ForceLogout>(_onForceLogout);
+
+    // تعيين callback لـ SessionManager
+    sessionManager.onForceLogout = (reason) {
+      add(ForceLogout(reason: reason));
+    };
+
+    // الاستماع لتغييرات حالة المصادقة
+    sessionManager.authStateChanges.listen((authState) {
+      sessionManager.handleAuthStateChange(authState);
+    });
   }
 
   Future<void> _onSignInRequested(
@@ -51,6 +65,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (user) async {
         // حفظ المستخدم محلياً
         await localStorageService.saveUser(user);
+
+        // بدء مراقبة الجلسة
+        sessionManager.startSessionMonitoring();
+
         emit(Authenticated(user: user));
       },
     );
@@ -74,6 +92,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (user) async {
         // حفظ المستخدم محلياً
         await localStorageService.saveUser(user);
+
+        // بدء مراقبة الجلسة
+        sessionManager.startSessionMonitoring();
+
         emit(Authenticated(user: user));
       },
     );
@@ -84,6 +106,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+
+    // إيقاف مراقبة الجلسة
+    sessionManager.stopSessionMonitoring();
 
     final result = await signOutUseCase();
 
@@ -117,13 +142,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
 
+    // التحقق من صلاحية الجلسة
+    final isValid = await sessionManager.validateSessionOnStartup();
+
+    if (!isValid) {
+      emit(Unauthenticated());
+      return;
+    }
+
     // محاولة جلب المستخدم من التخزين المحلي أولاً
     final localUser = await localStorageService.getUser();
 
     if (localUser != null) {
       // عرض المستخدم المحلي فوراً
       emit(Authenticated(user: localUser));
-      return; // إنهاء الدالة هنا لتسريع العملية
+      return;
     }
 
     // لا يوجد مستخدم محلي، التحقق من Supabase
@@ -147,6 +180,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     CheckAuthStatus event,
     Emitter<AuthState> emit,
   ) async {
+    // التحقق من صلاحية الجلسة أولاً
+    final isValid = await sessionManager.isSessionValid();
+
+    if (!isValid) {
+      await localStorageService.clearUser();
+      emit(Unauthenticated());
+      return;
+    }
+
     final result = await getCurrentUserUseCase();
 
     await result.fold(
@@ -163,5 +205,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
       },
     );
+  }
+
+  Future<void> _onForceLogout(
+    ForceLogout event,
+    Emitter<AuthState> emit,
+  ) async {
+    // إيقاف مراقبة الجلسة
+    sessionManager.stopSessionMonitoring();
+
+    // حذف البيانات المحلية
+    await localStorageService.clearUser();
+
+    // تسجيل الخروج من Supabase
+    await signOutUseCase();
+
+    // عرض رسالة السبب إذا كان موجوداً
+    if (event.reason != null) {
+      emit(AuthError(message: event.reason!));
+      // الانتقال إلى حالة غير مصادق بعد ثانية
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    emit(Unauthenticated());
   }
 }

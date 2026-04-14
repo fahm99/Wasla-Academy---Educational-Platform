@@ -118,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.person_outline,
             size: 80,
             color: AppColors.textLight,
@@ -237,7 +237,7 @@ class _ProfilePageState extends State<ProfilePage>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.email_outlined,
                 size: 18,
                 color: AppColors.textSecondary,
@@ -257,7 +257,7 @@ class _ProfilePageState extends State<ProfilePage>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.phone_outlined,
                   size: 18,
                   color: AppColors.textSecondary,
@@ -293,7 +293,7 @@ class _ProfilePageState extends State<ProfilePage>
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.info_outline,
                     color: AppColors.primary,
                     size: 20,

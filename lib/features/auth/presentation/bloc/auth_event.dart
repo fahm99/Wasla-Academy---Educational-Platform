@@ -64,3 +64,13 @@ class LoadCurrentUser extends AuthEvent {
 class CheckAuthStatus extends AuthEvent {
   const CheckAuthStatus();
 }
+
+/// حدث فرض تسجيل الخروج (Session Timeout / Token Expired)
+class ForceLogout extends AuthEvent {
+  final String? reason;
+
+  const ForceLogout({this.reason});
+
+  @override
+  List<Object?> get props => [reason];
+}

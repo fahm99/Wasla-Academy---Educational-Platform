@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/video_player_widget.dart';
+import '../../../../core/widgets/enhanced_video_player.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/learning_bloc.dart';
 
@@ -240,7 +240,7 @@ class _LessonViewerPageState extends State<LessonViewerPage> {
   }
 
   Widget _buildVideoPlayer() {
-    return SimpleVideoPlayer(
+    return EnhancedVideoPlayer(
       videoUrl: widget.videoUrl,
       title: widget.lessonTitle,
       autoPlay: false,

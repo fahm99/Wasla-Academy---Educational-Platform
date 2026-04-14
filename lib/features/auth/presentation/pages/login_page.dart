@@ -31,7 +31,6 @@ class _LoginPageState extends State<LoginPage> {
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
-      debugPrint('🔐 Attempting login...');
       context.read<AuthBloc>().add(
             SignInRequested(
               email: _emailController.text.trim(),
@@ -51,12 +50,9 @@ class _LoginPageState extends State<LoginPage> {
           return previous.runtimeType != current.runtimeType;
         },
         listener: (context, state) {
-          debugPrint('🔄 Auth state changed: ${state.runtimeType}');
           if (state is AuthError) {
-            debugPrint('❌ Auth error: ${state.message}');
             Helpers.showErrorSnackbar(context, state.message);
           } else if (state is Authenticated) {
-            debugPrint('✅ Authenticated: ${state.user.name}');
             Helpers.showSuccessSnackbar(context, 'مرحباً ${state.user.name}!');
             // التوجيه الفوري باستخدام pushReplacement
             WidgetsBinding.instance.addPostFrameCallback((_) {

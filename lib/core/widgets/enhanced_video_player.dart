@@ -1,36 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:waslaacademy/core/constants/app_colors.dart';
-import 'package:waslaacademy/core/constants/app_sizes.dart';
-import 'package:waslaacademy/core/constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_sizes.dart';
+import '../constants/app_text_styles.dart';
 
-/// Simple video player widget with controls
-///
-/// Features:
-/// - Play/Pause controls
-/// - Progress bar with seek functionality
-/// - Video completion callback
-/// - Position change callback
-/// - Fullscreen support
-///
-/// Usage:
-/// ```dart
-/// SimpleVideoPlayer(
-///   videoUrl: 'https://example.com/video.mp4',
-///   title: 'Lesson 1',
-///   onVideoCompleted: () {
-///     print('Video completed');
-///   },
-/// )
-/// ```
-class SimpleVideoPlayer extends StatefulWidget {
+/// محسّن Video Player مع معالجة أخطاء شاملة
+class EnhancedVideoPlayer extends StatefulWidget {
   final String? videoUrl;
   final String title;
   final Function()? onVideoCompleted;
   final Function(Duration position)? onPositionChanged;
   final bool autoPlay;
 
-  const SimpleVideoPlayer({
+  const EnhancedVideoPlayer({
     super.key,
     this.videoUrl,
     required this.title,
@@ -40,16 +22,19 @@ class SimpleVideoPlayer extends StatefulWidget {
   });
 
   @override
-  State<SimpleVideoPlayer> createState() => _SimpleVideoPlayerState();
+  State<EnhancedVideoPlayer> createState() => _EnhancedVideoPlayerState();
 }
 
-class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
+class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
   bool _showControls = true;
+  bool _isBuffering = false;
   String? _errorMessage;
   bool _notifiedCompletion = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
@@ -74,41 +59,92 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
     }
 
     try {
-      // Initialize video player with network URL
+      setState(() {
+        _hasError = false;
+        _errorMessage = null;
+      });
+
       _controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.videoUrl!),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: false,
+          allowBackgroundPlayback: false,
+        ),
       );
 
       await _controller!.initialize();
-
-      // Add listener for video state changes
       _controller!.addListener(_videoListener);
 
       setState(() {
         _isInitialized = true;
+        _retryCount = 0;
       });
 
-      // Auto play if enabled
       if (widget.autoPlay) {
         _controller!.play();
       }
     } catch (e) {
       setState(() {
         _hasError = true;
-        _errorMessage = 'فشل في تحميل الفيديو: ${e.toString()}';
+        _errorMessage = _getErrorMessage(e);
       });
     }
   }
 
+  String _getErrorMessage(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+
+    if (errorStr.contains('network') || errorStr.contains('connection')) {
+      return 'خطأ في الاتصال. تحقق من الإنترنت وحاول مرة أخرى.';
+    } else if (errorStr.contains('format') || errorStr.contains('codec')) {
+      return 'تنسيق الفيديو غير مدعوم';
+    } else if (errorStr.contains('404')) {
+      return 'الفيديو غير موجود';
+    } else if (errorStr.contains('403')) {
+      return 'ليس لديك صلاحية لمشاهدة هذا الفيديو';
+    }
+
+    return 'فشل في تحميل الفيديو. حاول مرة أخرى.';
+  }
+
+  Future<void> _retryLoad() async {
+    if (_retryCount >= _maxRetries) {
+      setState(() {
+        _errorMessage = 'فشل التحميل بعد $_maxRetries محاولات';
+      });
+      return;
+    }
+
+    _retryCount++;
+    await _controller?.dispose();
+    _controller = null;
+
+    setState(() {
+      _isInitialized = false;
+      _hasError = false;
+    });
+
+    await Future.delayed(Duration(seconds: _retryCount));
+    await _initializePlayer();
+  }
+
   void _videoListener() {
     if (!mounted) return;
+
+    // Check buffering state
+    final isBuffering = _controller!.value.isBuffering;
+    if (isBuffering != _isBuffering) {
+      setState(() {
+        _isBuffering = isBuffering;
+      });
+    }
 
     // Notify position change
     if (widget.onPositionChanged != null && _controller != null) {
       widget.onPositionChanged!(_controller!.value.position);
     }
 
-    // Check if video is completed (when position reaches 95% or more of duration)
+    // Check completion
     if (_controller != null &&
         _controller!.value.duration.inSeconds > 0 &&
         !_notifiedCompletion) {
@@ -116,7 +152,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       final duration = _controller!.value.duration.inSeconds;
       final completionPercentage = (position / duration) * 100;
 
-      // Mark as completed when 95% of video is watched or video ends
       if (completionPercentage >= 95 || position >= duration) {
         _notifiedCompletion = true;
         if (widget.onVideoCompleted != null) {
@@ -125,7 +160,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       }
     }
 
-    // Update UI
     if (mounted) {
       setState(() {});
     }
@@ -184,32 +218,41 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       height: 200,
       color: Colors.black,
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.white,
-              size: 48,
-            ),
-            const SizedBox(height: AppSizes.spaceMedium),
-            Text(
-              'خطأ في تشغيل الفيديو',
-              style: AppTextStyles.bodyLarge(context).copyWith(
-                color: Colors.white,
-              ),
-            ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: AppSizes.spaceSmall),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.spaceMedium),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 48),
+              const SizedBox(height: AppSizes.spaceMedium),
               Text(
-                _errorMessage!,
-                style: AppTextStyles.bodyMedium(context).copyWith(
-                  color: Colors.white70,
-                ),
-                textAlign: TextAlign.center,
+                'خطأ في تشغيل الفيديو',
+                style: AppTextStyles.bodyLarge(context)
+                    .copyWith(color: Colors.white),
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: AppSizes.spaceSmall),
+                Text(
+                  _errorMessage!,
+                  style: AppTextStyles.bodyMedium(context)
+                      .copyWith(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: AppSizes.spaceMedium),
+              if (_retryCount < _maxRetries)
+                ElevatedButton.icon(
+                  onPressed: _retryLoad,
+                  icon: const Icon(Icons.refresh),
+                  label:
+                      Text('إعادة المحاولة (${_retryCount + 1}/$_maxRetries)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -220,8 +263,16 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
       height: 200,
       color: Colors.black,
       child: const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.primary,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColors.primary),
+            SizedBox(height: AppSizes.spaceMedium),
+            Text(
+              'جاري تحميل الفيديو...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
         ),
       ),
     );
@@ -245,26 +296,21 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Video player - centered with proper aspect ratio and fit
+            // Video
             Center(
               child: AspectRatio(
                 aspectRatio: _controller!.value.aspectRatio,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: _controller!.value.size.width,
-                    height: _controller!.value.size.height,
-                    child: AbsorbPointer(
-                      // Prevent direct interaction with video player
-                      absorbing: true,
-                      child: VideoPlayer(_controller!),
-                    ),
-                  ),
-                ),
+                child: VideoPlayer(_controller!),
               ),
             ),
 
-            // Play/Pause button overlay
+            // Buffering indicator
+            if (_isBuffering)
+              const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+
+            // Play/Pause button
             if (_showControls || !isPlaying)
               Center(
                 child: GestureDetector(
@@ -275,13 +321,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.9),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: Icon(
                       isPlaying ? Icons.pause : Icons.play_arrow,
@@ -313,7 +352,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Progress bar
                       VideoProgressIndicator(
                         _controller!,
                         allowScrubbing: true,
@@ -324,27 +362,19 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                         ),
                       ),
                       const SizedBox(height: AppSizes.spaceSmall),
-                      // Time and controls
                       Row(
                         children: [
                           Text(
                             _formatDuration(position),
-                            style: AppTextStyles.caption(context).copyWith(
-                              color: Colors.white,
-                            ),
+                            style: const TextStyle(color: Colors.white),
                           ),
-                          const Text(
-                            ' / ',
-                            style: TextStyle(color: Colors.white70),
-                          ),
+                          const Text(' / ',
+                              style: TextStyle(color: Colors.white70)),
                           Text(
                             _formatDuration(duration),
-                            style: AppTextStyles.caption(context).copyWith(
-                              color: Colors.white70,
-                            ),
+                            style: const TextStyle(color: Colors.white70),
                           ),
                           const SizedBox(width: AppSizes.spaceSmall),
-                          // Completion percentage indicator
                           if (duration.inSeconds > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -362,7 +392,7 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                               ),
                               child: Text(
                                 '${_getCompletionPercentage(position, duration).toStringAsFixed(0)}%',
-                                style: AppTextStyles.caption(context).copyWith(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -370,7 +400,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                               ),
                             ),
                           const Spacer(),
-                          // Rewind 10 seconds
                           IconButton(
                             onPressed: () {
                               final newPosition =
@@ -379,12 +408,9 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                                   ? Duration.zero
                                   : newPosition);
                             },
-                            icon: const Icon(
-                              Icons.replay_10,
-                              color: Colors.white,
-                            ),
+                            icon: const Icon(Icons.replay_10,
+                                color: Colors.white),
                           ),
-                          // Play/Pause
                           IconButton(
                             onPressed: _togglePlayPause,
                             icon: Icon(
@@ -392,7 +418,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                               color: Colors.white,
                             ),
                           ),
-                          // Forward 10 seconds
                           IconButton(
                             onPressed: () {
                               final newPosition =
@@ -401,10 +426,8 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                                   ? duration
                                   : newPosition);
                             },
-                            icon: const Icon(
-                              Icons.forward_10,
-                              color: Colors.white,
-                            ),
+                            icon: const Icon(Icons.forward_10,
+                                color: Colors.white),
                           ),
                         ],
                       ),
@@ -413,7 +436,7 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                 ),
               ),
 
-            // Title overlay
+            // Title
             if (_showControls)
               Positioned(
                 top: 0,
@@ -433,9 +456,8 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
                   padding: const EdgeInsets.all(AppSizes.spaceMedium),
                   child: Text(
                     widget.title,
-                    style: AppTextStyles.labelLarge(context).copyWith(
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -443,113 +465,6 @@ class _SimpleVideoPlayerState extends State<SimpleVideoPlayer> {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Simple video placeholder for demo purposes
-class VideoPlaceholder extends StatelessWidget {
-  final String title;
-  final String duration;
-  final VoidCallback? onPlay;
-
-  const VideoPlaceholder({
-    super.key,
-    required this.title,
-    required this.duration,
-    this.onPlay,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-      ),
-      child: Stack(
-        children: [
-          // Background gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            ),
-          ),
-
-          // Play button
-          Center(
-            child: GestureDetector(
-              onTap: onPlay,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.9),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.play_arrow,
-                  size: 40,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-
-          // Video info
-          Positioned(
-            bottom: AppSizes.spaceMedium,
-            left: AppSizes.spaceMedium,
-            right: AppSizes.spaceMedium,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.labelLarge(context).copyWith(
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: AppSizes.spaceXSmall),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: AppSizes.iconSmall,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: AppSizes.spaceXSmall),
-                    Text(
-                      duration,
-                      style: AppTextStyles.caption(context).copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

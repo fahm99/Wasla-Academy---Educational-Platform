@@ -1,10 +1,12 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// تكوين Supabase
 ///
 /// يحتوي على جميع الإعدادات الخاصة بـ Supabase
 class SupabaseConfig {
-  static const String supabaseUrl = 'https://hmgisljihrsztskvmbfd.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZ2lzbGppaHJzenRza3ZtYmZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjAyNjEsImV4cCI6MjA5MTEzNjI2MX0.Aunodx4B6O9hgSeEtJa3iKg9ydbxYK601kYUIINpr2g';
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
   // Storage Buckets
   static const String courseVideosBucket = 'course-videos';
   static const String courseFilesBucket = 'course-files';
@@ -13,7 +15,7 @@ class SupabaseConfig {
   static const String avatarsBucket = 'avatars';
 
   // API Endpoints (إذا كنت تستخدم Edge Functions)
-  static const String edgeFunctionsUrl = '$supabaseUrl/functions/v1';
+  static String get edgeFunctionsUrl => '$supabaseUrl/functions/v1';
 
   // Realtime Configuration
   static const bool enableRealtime = true;
@@ -42,7 +44,6 @@ class SupabaseConfig {
 
   // Validation
   static bool isConfigured() {
-    return supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
-        supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY';
+    return supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
   }
 }

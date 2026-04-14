@@ -1,9 +1,11 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// تكوين التطبيق العام
 class AppConfig {
   // App Information
   static const String appName = 'منصة وصلة أكاديمي';
   static const String appNameEn = 'Wasla Academy';
-  static const String appVersion = '1.0.0';
+  static String get appVersion => dotenv.env['APP_VERSION'] ?? '1.0.0';
 
   // API Configuration
   static const int apiTimeout = 30; // seconds
@@ -48,6 +50,8 @@ class AppConfig {
   static const String defaultTheme = 'light';
 
   // Debug Configuration
-  static const bool enableDebugMode = true;
-  static const bool enableLogging = true;
+  static bool get enableDebugMode =>
+      dotenv.env['ENABLE_DEBUG_MODE']?.toLowerCase() == 'true';
+  static bool get enableLogging =>
+      dotenv.env['ENABLE_LOGGING']?.toLowerCase() == 'true';
 }
