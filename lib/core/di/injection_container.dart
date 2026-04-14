@@ -144,8 +144,8 @@ Future<void> init() async {
   );
 
   // ============ Courses Feature ============
-  // Bloc
-  sl.registerFactory(() => CoursesBloc(
+  // Bloc - استخدام LazySingleton لحفظ الحالة
+  sl.registerLazySingleton(() => CoursesBloc(
         getAllCoursesUseCase: sl(),
         searchCoursesUseCase: sl(),
         getCourseDetailsUseCase: sl(),
@@ -175,8 +175,8 @@ Future<void> init() async {
   );
 
   // ============ Payments Feature ============
-  // Bloc
-  sl.registerFactory(() => PaymentsBloc(
+  // Bloc - استخدام LazySingleton لحفظ الحالة
+  sl.registerLazySingleton(() => PaymentsBloc(
         getProviderPaymentSettingsUseCase: sl(),
         submitPaymentUseCase: sl(),
         getPaymentByIdUseCase: sl(),
@@ -202,8 +202,8 @@ Future<void> init() async {
   );
 
   // ============ Learning Feature ============
-  // Bloc
-  sl.registerFactory(() => LearningBloc(
+  // Bloc - استخدام LazySingleton لحفظ الحالة
+  sl.registerLazySingleton(() => LearningBloc(
         getCourseLessonsUseCase: sl(),
         updateLessonProgressUseCase: sl(),
         getLessonProgressUseCase: sl(),

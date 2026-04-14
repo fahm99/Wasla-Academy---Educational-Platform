@@ -125,8 +125,58 @@ void main() async {
   }, ErrorHandler.handleZoneError);
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.paused:
+        _handleAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        _handleAppResumed();
+        break;
+      case AppLifecycleState.detached:
+        _handleAppDetached();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _handleAppPaused() {
+    ErrorHandler().logInfo('App paused', context: 'AppLifecycle');
+    // يمكن حفظ الحالة هنا إذا لزم الأمر
+  }
+
+  void _handleAppResumed() {
+    ErrorHandler().logInfo('App resumed', context: 'AppLifecycle');
+    // يمكن إعادة تحميل البيانات أو التحقق من الجلسة
+  }
+
+  void _handleAppDetached() {
+    ErrorHandler().logInfo('App detached', context: 'AppLifecycle');
+  }
 
   @override
   Widget build(BuildContext context) {

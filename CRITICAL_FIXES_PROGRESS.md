@@ -1,218 +1,193 @@
-# 🔧 تقرير إصلاح المشاكل الحرجة
+# 🔧 تقرير إصلاح المشاكل الحرجة - STABILITY & UX IMPROVEMENTS
 
-## ✅ المشكلة 1: Network Connectivity Check - مكتمل
-
-### ما تم إنجازه:
-1. ✅ إضافة `connectivity_plus` package
-2. ✅ إضافة `flutter_dotenv` package
-3. ✅ إنشاء ملف `.env` لتخزين المفاتيح الحساسة
-4. ✅ تحديث `.gitignore` لاستبعاد الملفات الحساسة
-5. ✅ تحديث `supabase_config.dart` لاستخدام متغيرات البيئة
-6. ✅ تحديث `app_config.dart` لاستخدام متغيرات البيئة
-7. ✅ إعادة كتابة `network_info.dart` مع فحص حقيقي للاتصال
-8. ✅ إضافة Global Error Handler في `main.dart`
-9. ✅ إنشاء `NoInternetWidget` لعرض رسالة عند عدم وجود إنترنت
-10. ✅ إنشاء `ConnectivityService` لمراقبة حالة الاتصال
-11. ✅ إزالة `debugPrint` من صفحات Login و Register
-
-### الملفات المعدلة:
-- `pubspec.yaml` - إضافة dependencies
-- `.env` - ملف جديد للمفاتيح
-- `.gitignore` - إضافة استثناءات
-- `lib/core/config/supabase_config.dart` - استخدام dotenv
-- `lib/core/config/app_config.dart` - استخدام dotenv
-- `lib/core/network/network_info.dart` - فحص حقيقي
-- `lib/main.dart` - Error Handler + dotenv
-- `lib/features/auth/presentation/pages/login_page.dart` - إزالة debug
-- `lib/features/auth/presentation/pages/register_page.dart` - إزالة debug
-
-### الملفات الجديدة:
-- `lib/core/widgets/no_internet_widget.dart`
-- `lib/core/services/connectivity_service.dart`
+## 📋 المرجع: STABILITY_UX_IMPROVEMENT_PLAN.md
 
 ---
 
-## 🔄 المشكلة 2: Hardcoded Credentials - مكتمل
+## ✅ المشاكل المكتملة:
 
-تم حلها ضمن المشكلة 1 بنقل جميع المفاتيح إلى `.env`
+### 1️⃣ فقدان البيانات عند الرجوع (Data Loss on Back Navigation) - ✅ مكتمل
 
----
+**المشكلة:** استخدام Factory للـ Blocs يؤدي لإنشاء instance جديد كل مرة وفقدان البيانات.
 
-## ✅ ما تم إنجازه حتى الآن:
-
-### 1. Network Connectivity Check - مكتمل ✅
-### 2. Hardcoded Credentials - مكتمل ✅  
-### 3. Session Management - مكتمل ✅
-
-**Session Management تفاصيل:**
-- Session timeout: 30 دقيقة من عدم النشاط
-- Token refresh تلقائي قبل 5 دقائق من انتهاء الصلاحية
-- Force logout عند انتهاء الجلسة
-- Activity tracking لتتبع نشاط المستخدم
-- Session validation عند بدء التطبيق
-
----
-
-## ⏳ المشاكل المتبقية:
-
-### 3. 💾 Offline Support
-**الحالة:** لم يبدأ  
-**الأولوية:** عالية جداً  
-**الوقت المقدر:** 2-3 أيام
-
-### 4. 🚨 Error Boundary
-**الحالة:** مكتمل جزئياً (Global Error Handler موجود)  
-**المتبقي:** إضافة Crashlytics/Sentry  
-**الأولوية:** عالية  
-**الوقت المقدر:** 1 يوم
-
-### 5. 🔒 Session Management
-**الحالة:** ✅ مكتمل  
-**الأولوية:** عالية جداً  
-**الوقت المستغرق:** 2 ساعات
-
-**ما تم إنجازه:**
-1. ✅ إنشاء `SessionManager` class مع:
-   - Session timeout monitoring (30 دقيقة من عدم النشاط)
-   - Automatic token refresh (5 دقائق قبل انتهاء الصلاحية)
-   - Force logout عند انتهاء الجلسة
-   - Auth state change handling
-   - Session validation عند بدء التطبيق
-2. ✅ إضافة SessionManager إلى dependency injection
-3. ✅ تكامل SessionManager مع AuthBloc:
-   - إضافة `ForceLogout` event
-   - تنفيذ `_onForceLogout` handler
-   - Callback mechanism لإشعار AuthBloc بانتهاء الجلسة
-   - Session validation في `_onLoadCurrentUser`
-   - Session validation في `_onCheckAuthStatus`
-4. ✅ إضافة activity tracking في `main.dart`:
-   - GestureDetector لتتبع تفاعلات المستخدم
-   - تحديث `lastActivityTime` عند كل تفاعل
-5. ✅ بدء/إيقاف session monitoring عند تسجيل الدخول/الخروج
-
-**الملفات الجديدة:**
-- `lib/core/services/session_manager.dart`
+**الحل المطبق:**
+- ✅ تحويل CoursesBloc من Factory إلى LazySingleton
+- ✅ تحويل PaymentsBloc من Factory إلى LazySingleton  
+- ✅ تحويل LearningBloc من Factory إلى LazySingleton
+- ✅ إضافة CacheManager مع TTL support
+- ✅ إضافة Caching في CoursesRepository (10-15 دقيقة)
+- ✅ إضافة Caching في LearningRepository (3-10 دقائق)
 
 **الملفات المعدلة:**
-- `lib/features/auth/presentation/bloc/auth_bloc.dart`
-- `lib/features/auth/presentation/bloc/auth_event.dart`
 - `lib/core/di/injection_container.dart`
-- `lib/main.dart`
-
-### 6. 📹 Video Player
-**الحالة:** ✅ مكتمل  
-**الأولوية:** متوسطة-عالية  
-**الوقت المستغرق:** 1 ساعة
-
-**ما تم إنجازه:**
-1. ✅ إنشاء `EnhancedVideoPlayer` مع معالجة أخطاء شاملة
-2. ✅ Retry logic (3 محاولات) عند فشل التحميل
-3. ✅ Buffering indicator واضح
-4. ✅ Network error handling مع رسائل واضحة
-5. ✅ Error messages مخصصة حسب نوع الخطأ (404, 403, network, format)
-6. ✅ تحديث `lesson_viewer_page` لاستخدام Enhanced Player
+- `lib/features/courses/data/repositories/courses_repository_impl.dart`
+- `lib/features/learning/data/repositories/learning_repository_impl.dart`
 
 **الملفات الجديدة:**
-- `lib/core/widgets/enhanced_video_player.dart`
-
-**الملفات المعدلة:**
-- `lib/features/learning/presentation/pages/lesson_viewer_page.dart`
+- `lib/core/cache/cache_manager.dart`
 
 ---
 
-### 7. 💳 Payment Flow
-**الحالة:** ✅ مكتمل  
-**الأولوية:** عالية  
-**الوقت المستغرق:** 1 ساعة
+### 2️⃣ فقدان الصورة المرفوعة عند الرجوع (Image Loss on Navigation) - ✅ مكتمل
 
-**ما تم إنجازه:**
-1. ✅ إنشاء `PaymentValidator` للتحقق الشامل من البيانات
-2. ✅ Validation لرقم المعاملة (4-50 حرف، أحرف وأرقام فقط)
-3. ✅ Validation للمبلغ (10-100,000 ريال)
-4. ✅ Validation لصورة الإيصال (نوع، حجم، وجود)
-5. ✅ إنشاء `PaymentStatusBadge` و `PaymentInfoCard` widgets
-6. ✅ تحسين error messages للمستخدم
-7. ✅ إضافة `ReceiptImagePreview` widget
+**المشكلة:** الصورة المرفوعة تُحفظ في State فقط وتُفقد عند dispose.
+
+**الحل المطبق:**
+- ✅ إنشاء PaymentDraftService لحفظ/استرجاع المسودات
+- ✅ حفظ الصورة والبيانات في SharedPreferences
+- ✅ استرجاع تلقائي عند فتح الصفحة
+- ✅ حذف المسودة بعد النجاح
+- ✅ تنظيف تلقائي للمسودات القديمة (7 أيام)
+- ✅ Loading indicator أثناء تحميل المسودة
 
 **الملفات الجديدة:**
-- `lib/core/services/payment_validator.dart`
-- `lib/features/payments/presentation/widgets/payment_status_badge.dart`
+- `lib/core/services/payment_draft_service.dart`
 
 **الملفات المعدلة:**
 - `lib/features/payments/presentation/pages/payment_upload_page.dart`
-- `lib/features/payments/presentation/pages/payment_status_page.dart`
 
 ---
 
-### 4. 🚨 Error Boundary
-**الحالة:** ✅ مكتمل  
-**الأولوية:** عالية جداً  
-**الوقت المستغرق:** 1 ساعة
+### 3️⃣ عدم وجود Retry Mechanism عند فشل Upload - ✅ مكتمل
 
-**ما تم إنجازه:**
-1. ✅ بناء `ErrorHandler` كامل بدون حزم خارجية
-2. ✅ تسجيل الأخطاء في ملفات logs محلية
-3. ✅ مستويات أخطاء (debug, info, warning, error, fatal)
-4. ✅ Global Error Handler لـ Flutter Framework
-5. ✅ Zone Error Handler للأخطاء الـ async
-6. ✅ تنظيف تلقائي للـ logs القديمة (7 أيام)
-7. ✅ تصدير الـ logs
-8. ✅ `ErrorBoundary` widget لمعالجة أخطاء UI
-9. ✅ `ErrorDisplayWidget` لعرض الأخطاء للمستخدم
-10. ✅ رسائل خطأ واضحة بالعربية
+**المشكلة:** عند فشل الرفع، لا توجد إعادة محاولة تلقائية.
 
-**الملفات الجديدة:**
-- `lib/core/services/error_handler.dart`
-- `lib/core/widgets/error_boundary_widget.dart`
+**الحل المطبق:**
+- ✅ إضافة executeWithRetry في ApiClient
+- ✅ Retry logic مع 3 محاولات افتراضياً
+- ✅ Exponential backoff (2s, 4s, 8s)
+- ✅ Error logging لكل محاولة
+- ✅ uploadFileWithRetry للملفات
+
+**الملفات المعدلة:**
+- `lib/core/network/api_client.dart`
+
+---
+
+### 5️⃣ عدم حفظ Scroll Position - ✅ مكتمل
+
+**المشكلة:** عند الرجوع للقائمة، يعود للأعلى بدلاً من الموقع السابق.
+
+**الحل المطبق:**
+- ✅ إضافة PageStorageKey('courses_list') في CoursesPage
+- ✅ استخدام AutomaticKeepAliveClientMixin لحفظ الصفحة
+
+**الملفات المعدلة:**
+- `lib/features/courses/presentation/pages/courses_page.dart`
+
+---
+
+### 🔟 عدم معالجة App Lifecycle - ✅ مكتمل جزئياً
+
+**المشكلة:** لا توجد معالجة لحالات App (Background, Resume, Detached).
+
+**الحل المطبق:**
+- ✅ تحويل MyApp من StatelessWidget إلى StatefulWidget
+- ✅ إضافة WidgetsBindingObserver
+- ✅ معالجة didChangeAppLifecycleState
+- ✅ Handlers لـ paused, resumed, detached
 
 **الملفات المعدلة:**
 - `lib/main.dart`
-- `pubspec.yaml`
 
 ---
 
-### 8. 🧪 Tests
-**الحالة:** لم يبدأ  
-**الأولوية:** عالية  
-**الوقت المقدر:** 5-7 أيام
+## ⏳ المشاكل قيد العمل:
+
+### 4️⃣ إعادة تحميل البيانات بشكل مفرط (Over-fetching) - 🔄 جزئياً
+
+**ما تم:**
+- ✅ إضافة Caching في Repositories
+- ✅ TTL للبيانات
+
+**المتبقي:**
+- ⏳ إضافة flag لمنع إعادة التحميل في didChangeDependencies
+- ⏳ تحسين CourseContentPage
+
+---
+
+### 6️⃣ عدم وجود Offline Support - ⏳ لم يبدأ
+
+**المطلوب:**
+- إضافة Hive للتخزين المحلي
+- حفظ البيانات المهمة offline
+- Sync عند عودة الشبكة
+- Offline UI
+
+---
+
+### 7️⃣ عدم حفظ Form Data - ⏳ لم يبدأ
+
+**المطلوب:**
+- حفظ بيانات النماذج في LocalStorage
+- استرجاع عند العودة
+
+---
+
+### 8️⃣ Memory Leaks في Timers - ⏳ لم يبدأ
+
+**المطلوب:**
+- مراجعة جميع Timers
+- إضافة dispose صحيح
+- إلغاء Timers القديمة
+
+---
+
+### 9️⃣ عدم وجود Progress Indicator للـ Upload - ⏳ لم يبدأ
+
+**المطلوب:**
+- إضافة PaymentsUploading state
+- عرض النسبة المئوية
+- onProgress callback
+
+---
+
+### 11. عدم وجود Debouncing للبحث - ⏳ لم يبدأ
+
+**المطلوب:**
+- إضافة Timer للبحث
+- Debounce 500ms
+
+---
+
+### 12. عدم وجود Pagination - ⏳ لم يبدأ
+
+**المطلوب:**
+- إضافة pagination للكورسات
+- Load more functionality
 
 ---
 
 ## 📊 الإحصائيات:
 
-- **المشاكل الحرجة المحلولة:** 6/8 (75%)
-- **الوقت المستغرق:** ~7 ساعات
-- **الوقت المتبقي المقدر:** 7-12 يوم
+- **المشاكل الحرجة المحلولة:** 5/12 (42%)
+- **المشاكل الجزئية:** 1/12 (8%)
+- **المشاكل المتبقية:** 6/12 (50%)
+- **الوقت المستغرق:** ~3 ساعات
+- **الوقت المتبقي المقدر:** 8-12 ساعة
 
 ---
 
-## 🎯 الخطوات التالية:
+## 🎯 الخطوات التالية (بالأولوية):
 
-1. ✅ ~~تشغيل `flutter pub get` لتحميل الـ packages الجديدة~~
-2. ✅ ~~اختبار الاتصال بالإنترنت~~
-3. ✅ ~~التأكد من عمل `.env` بشكل صحيح~~
-4. ✅ ~~اختبار Session Management~~
-5. ✅ ~~اختبار Video Player المحسّن~~
-6. ✅ ~~اختبار Payment Validation~~
-7. اختبار التطبيق بشكل شامل
-8. البدء في المشكلة 3: Offline Support
-9. البدء في المشكلة 4: Error Boundary (Crashlytics)
-10. البدء في المشكلة 8: Tests
+1. ⏳ إكمال Over-fetching fixes
+2. ⏳ إضافة Upload Progress Indicator
+3. ⏳ إضافة Debouncing للبحث
+4. ⏳ معالجة Memory Leaks
+5. ⏳ Form Data Persistence
+6. ⏳ Offline Support (مشروع كبير)
+7. ⏳ Pagination
 
 ---
 
-## ⚠️ ملاحظات مهمة:
+## ✅ المشاكل السابقة المكتملة:
 
-1. **يجب عدم رفع ملف `.env` على Git** ✅
-2. **يجب مشاركة `.env.example` مع الفريق** ✅
-3. **يجب تحديث `.env` في كل بيئة (dev, staging, production)** ⚠️
-4. **يجب اختبار التطبيق بدون إنترنت** ⏳
-5. **Session Timeout الافتراضي: 30 دقيقة** - يمكن تعديله في `SessionManager`
-6. **Token Refresh يحدث تلقائياً قبل 5 دقائق من انتهاء الصلاحية**
-7. **يجب اختبار Session Management في سيناريوهات مختلفة:**
-   - المستخدم نشط (يجب أن تستمر الجلسة)
-   - المستخدم غير نشط لمدة 30 دقيقة (يجب Force Logout)
-   - Token انتهت صلاحيته (يجب Refresh تلقائي أو Logout)
+### Network Connectivity Check - ✅ مكتمل
+### Hardcoded Credentials - ✅ مكتمل  
+### Session Management - ✅ مكتمل
+### Video Player - ✅ مكتمل
+### Payment Flow Validation - ✅ مكتمل
+### Error Boundary - ✅ مكتمل
 
 ---
 

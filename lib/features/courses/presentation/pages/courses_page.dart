@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -26,6 +27,7 @@ class _CoursesPageState extends State<CoursesPage>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _debounceTimer;
 
   String _selectedCategory = 'الكل';
 
@@ -55,6 +57,7 @@ class _CoursesPageState extends State<CoursesPage>
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -150,20 +153,22 @@ class _CoursesPageState extends State<CoursesPage>
                 controller: _searchController,
                 hintText: 'البحث في الكورسات...',
                 onChanged: (value) {
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (_searchController.text == value) {
-                      if (value.isNotEmpty || _selectedCategory != 'الكل') {
-                        context.read<CoursesBloc>().add(
-                              SearchCoursesEvent(
-                                query: value.isNotEmpty ? value : null,
-                                category: _selectedCategory != 'الكل'
-                                    ? _getCategoryKey(_selectedCategory)
-                                    : null,
-                              ),
-                            );
-                      } else {
-                        context.read<CoursesBloc>().add(LoadAllCoursesEvent());
-                      }
+                  // إلغاء Timer السابق
+                  _debounceTimer?.cancel();
+
+                  // إنشاء timer جديد
+                  _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+                    if (value.isNotEmpty || _selectedCategory != 'الكل') {
+                      context.read<CoursesBloc>().add(
+                            SearchCoursesEvent(
+                              query: value.isNotEmpty ? value : null,
+                              category: _selectedCategory != 'الكل'
+                                  ? _getCategoryKey(_selectedCategory)
+                                  : null,
+                            ),
+                          );
+                    } else {
+                      context.read<CoursesBloc>().add(LoadAllCoursesEvent());
                     }
                   });
                 },
@@ -258,6 +263,7 @@ class _CoursesPageState extends State<CoursesPage>
                         _refreshCourses();
                       },
                       child: ListView.builder(
+                        key: const PageStorageKey('courses_list'),
                         controller: _scrollController,
                         padding: EdgeInsets.all(screenPadding),
                         itemCount: courses.length,

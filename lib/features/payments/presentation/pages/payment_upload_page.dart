@@ -9,6 +9,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/services/payment_validator.dart';
+import '../../../../core/services/payment_draft_service.dart';
 import '../bloc/payments_bloc.dart';
 import '../bloc/payments_event.dart';
 import '../bloc/payments_state.dart';
@@ -38,9 +39,11 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
   final _formKey = GlobalKey<FormState>();
   final _transactionRefController = TextEditingController();
   final _imagePicker = ImagePicker();
+  final _draftService = PaymentDraftService();
 
   File? _receiptImage;
   String? _selectedPaymentMethod;
+  bool _isLoadingDraft = true;
 
   @override
   void initState() {
@@ -50,10 +53,52 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
     } else if (widget.acceptLocalTransfer) {
       _selectedPaymentMethod = ApiConstants.paymentMethodLocalTransfer;
     }
+    _loadDraft();
+  }
+
+  /// تحميل المسودة المحفوظة
+  Future<void> _loadDraft() async {
+    final draft = await _draftService.loadDraft(widget.courseId);
+
+    if (!mounted) return;
+
+    if (draft != null) {
+      setState(() {
+        _receiptImage = draft.receiptImage;
+        _transactionRefController.text = draft.transactionReference ?? '';
+        if (draft.paymentMethod != null) {
+          _selectedPaymentMethod = draft.paymentMethod;
+        }
+        _isLoadingDraft = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم استرجاع البيانات المحفوظة'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      setState(() {
+        _isLoadingDraft = false;
+      });
+    }
+  }
+
+  /// حفظ المسودة
+  Future<void> _saveDraft() async {
+    await _draftService.saveDraft(
+      courseId: widget.courseId,
+      receiptImage: _receiptImage,
+      transactionReference: _transactionRefController.text.trim(),
+      paymentMethod: _selectedPaymentMethod,
+    );
   }
 
   @override
   void dispose() {
+    _saveDraft(); // حفظ المسودة عند الخروج
     _transactionRefController.dispose();
     super.dispose();
   }
@@ -132,6 +177,7 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
     );
 
     if (errors.isNotEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(PaymentValidator.getErrorMessage(errors)),
@@ -142,6 +188,7 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
       return;
     }
 
+    if (!mounted) return;
     context.read<PaymentsBloc>().add(
           SubmitPaymentEvent(
             courseId: widget.courseId,
@@ -167,6 +214,9 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
       body: BlocConsumer<PaymentsBloc, PaymentsState>(
         listener: (context, state) {
           if (state is PaymentSubmitted) {
+            // حذف المسودة بعد النجاح
+            _draftService.deleteDraft(widget.courseId);
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -183,6 +233,13 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
         },
         builder: (context, state) {
           final isLoading = state is PaymentsLoading;
+
+          // عرض loading أثناء تحميل المسودة
+          if (_isLoadingDraft) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
 
           return SingleChildScrollView(
             padding: EdgeInsets.all(screenPadding),
