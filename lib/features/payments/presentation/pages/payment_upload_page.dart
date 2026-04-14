@@ -8,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/utils/responsive_helper.dart';
+import '../../../../core/services/payment_validator.dart';
 import '../bloc/payments_bloc.dart';
 import '../bloc/payments_event.dart';
 import '../bloc/payments_state.dart';
@@ -119,21 +120,24 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
     );
   }
 
-  void _submitPayment() {
+  void _submitPayment() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_receiptImage == null) {
+
+    // التحقق الشامل من البيانات
+    final errors = await PaymentValidator.validatePaymentData(
+      transactionReference: _transactionRefController.text.trim(),
+      amount: widget.amount,
+      receiptImage: _receiptImage,
+      paymentMethod: _selectedPaymentMethod,
+    );
+
+    if (errors.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('يرجى اختيار صورة الإيصال'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-    if (_selectedPaymentMethod == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('يرجى اختيار طريقة الدفع'),
-            backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(PaymentValidator.getErrorMessage(errors)),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 4),
+        ),
       );
       return;
     }
@@ -329,7 +333,8 @@ class _PaymentUploadPageState extends State<PaymentUploadPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: AppSizes.md),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSizes.md),
                       shape: RoundedRectangleBorder(
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMd)),
