@@ -11,6 +11,7 @@ import 'core/config/supabase_config.dart';
 import 'core/constants/app_colors.dart';
 import 'core/di/injection_container.dart' as di;
 import 'core/services/session_manager.dart';
+import 'core/services/error_handler.dart';
 
 // Features - Auth
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -74,13 +75,11 @@ void main() async {
   // تهيئة Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
+  // تهيئة Error Handler
+  await ErrorHandler().initialize();
+
   // Global Error Handler
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    // TODO: Send to Crashlytics in production
-    debugPrint('Flutter Error: ${details.exception}');
-    debugPrint('Stack trace: ${details.stack}');
-  };
+  FlutterError.onError = ErrorHandler.handleFlutterError;
 
   // Async Error Handler
   runZonedGuarded(() async {
@@ -116,17 +115,14 @@ void main() async {
         ),
       );
 
+      await ErrorHandler().logInfo('App initialized successfully');
       runApp(const MyApp());
     } catch (e, stackTrace) {
-      debugPrint('Error during app initialization: $e');
-      debugPrint('Stack trace: $stackTrace');
-      // TODO: Send to Crashlytics
+      await ErrorHandler()
+          .logFatal(e, stackTrace, context: 'App Initialization');
+      // يمكن عرض شاشة خطأ للمستخدم هنا
     }
-  }, (error, stack) {
-    debugPrint('Async error: $error');
-    debugPrint('Stack trace: $stack');
-    // TODO: Send to Crashlytics
-  });
+  }, ErrorHandler.handleZoneError);
 }
 
 class MyApp extends StatelessWidget {

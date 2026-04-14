@@ -49,6 +49,12 @@ dependencies:
   # Video
   video_player: ^2.9.2
   
+  # Network & Connectivity
+  connectivity_plus: ^6.0.5
+  
+  # Environment Variables
+  flutter_dotenv: ^5.1.0
+  
   # Storage
   shared_preferences: ^2.3.2
   
@@ -64,8 +70,6 @@ dependencies:
   uuid: ^4.3.3
   dartz: ^0.10.1
   get_it: ^7.6.0
-  connectivity_plus: ^6.0.5
-  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
