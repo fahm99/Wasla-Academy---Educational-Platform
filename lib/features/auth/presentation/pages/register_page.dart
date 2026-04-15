@@ -55,25 +55,29 @@ class _RegisterPageState extends State<RegisterPage> {
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
         listenWhen: (previous, current) {
-          // منع معالجة الحالة نفسها مرتين
-          return previous.runtimeType != current.runtimeType;
+          // استمع لأي تغيير في الحالة
+          return true;
         },
         listener: (context, state) {
-          if (state is AuthError) {
+          if (state is AuthLoading) {
+            // Loading in progress - UI already shows loading
+            return;
+          } else if (state is AuthError) {
             Helpers.showErrorSnackbar(context, state.message);
           } else if (state is Authenticated) {
+            // تأكد من أن السياق ما زال موجوداً
+            if (!context.mounted) return;
+            
             Helpers.showSuccessSnackbar(
                 context, 'تم إنشاء الحساب بنجاح! مرحباً ${state.user.name}');
-            // التوجيه الفوري بدون تأخير
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const MainPage(),
-                  ),
-                );
-              }
-            });
+            
+            // التوجيه مباشرة بدون تأخير
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const MainPage(),
+              ),
+              (route) => false, // إزالة كل الصفحات السابقة
+            );
           }
         },
         builder: (context, state) {

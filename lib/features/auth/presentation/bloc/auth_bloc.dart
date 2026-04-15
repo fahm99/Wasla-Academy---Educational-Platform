@@ -78,15 +78,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) {
+        if (!emit.isDone) emit(AuthError(message: failure.message));
+      },
       (user) async {
+        if (emit.isDone) return;
+        
         // حفظ المستخدم محلياً
         await localStorageService.saveUser(user);
 
         // بدء مراقبة الجلسة
         sessionManager.startSessionMonitoring();
 
-        emit(Authenticated(user: user));
+        if (!emit.isDone) emit(Authenticated(user: user));
       },
     );
   }
@@ -105,15 +109,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) {
+        if (!emit.isDone) emit(AuthError(message: failure.message));
+      },
       (user) async {
+        if (emit.isDone) return;
+        
         // حفظ المستخدم محلياً
         await localStorageService.saveUser(user);
 
         // بدء مراقبة الجلسة
         sessionManager.startSessionMonitoring();
 
-        emit(Authenticated(user: user));
+        if (!emit.isDone) emit(Authenticated(user: user));
       },
     );
   }
