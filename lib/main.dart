@@ -171,11 +171,45 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void _handleAppResumed() {
     ErrorHandler().logInfo('App resumed', context: 'AppLifecycle');
-    // يمكن إعادة تحميل البيانات أو التحقق من الجلسة
+    
+    // التحقق من الجلسة عند العودة للتطبيق
+    _validateSessionOnResume();
   }
 
   void _handleAppDetached() {
     ErrorHandler().logInfo('App detached', context: 'AppLifecycle');
+  }
+
+  /// التحقق من الجلسة عند العودة للتطبيق
+  Future<void> _validateSessionOnResume() async {
+    try {
+      final authBloc = context.read<AuthBloc>();
+      final sessionManager = di.sl<SessionManager>();
+      
+      // التحقق من صلاحية الجلسة
+      final isValid = await sessionManager.isSessionValid();
+      
+      if (!isValid) {
+        // الجلسة انتهت، فرض تسجيل الخروج
+        authBloc.add(const ForceLogout(reason: 'انتهت الجلسة'));
+      } else {
+        // تحديث نشاط الجلسة
+        sessionManager.updateActivity();
+        
+        // التحقق من حالة المصادقة
+        final state = authBloc.state;
+        if (state is! Authenticated) {
+          // إعادة تحميل المستخدم
+          authBloc.add(const CheckAuthStatus());
+        }
+      }
+    } catch (e) {
+      // تجاهل الأخطاء في التحقق
+      ErrorHandler().logWarning(
+        'فشل التحقق من الجلسة عند العودة: ${e.toString()}',
+        context: 'AppLifecycle',
+      );
+    }
   }
 
   @override

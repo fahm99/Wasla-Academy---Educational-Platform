@@ -93,7 +93,7 @@ class _HomePageState extends State<HomePage>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildPartnerIcon(
+                    Expanded(child: _buildPartnerIcon(
                       context,
                       icon: Icons.person_outline,
                       label: 'المدربون',
@@ -105,8 +105,9 @@ class _HomePageState extends State<HomePage>
                           ),
                         );
                       },
-                    ),
-                    _buildPartnerIcon(
+                    )),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildPartnerIcon(
                       context,
                       icon: Icons.school_outlined,
                       label: 'المعاهد',
@@ -118,8 +119,9 @@ class _HomePageState extends State<HomePage>
                           ),
                         );
                       },
-                    ),
-                    _buildPartnerIcon(
+                    )),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildPartnerIcon(
                       context,
                       icon: Icons.account_balance_outlined,
                       label: 'الجامعات',
@@ -131,7 +133,7 @@ class _HomePageState extends State<HomePage>
                           ),
                         );
                       },
-                    ),
+                    )),
                   ],
                 ),
               ),

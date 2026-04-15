@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/exam.dart';
 import '../../domain/entities/exam_question.dart';
 import '../../domain/entities/exam_result.dart';
@@ -84,16 +85,24 @@ class ExamsRepositoryImpl implements ExamsRepository {
     }
 
     try {
-      final result = await remoteDataSource.submitExamAnswers(
-        examId: examId,
-        studentId: studentId,
-        answers: answers,
+      // Use retry for exam submission
+      final result = await ApiClient.executeWithRetry(
+        request: () async {
+          return await remoteDataSource.submitExamAnswers(
+            examId: examId,
+            studentId: studentId,
+            answers: answers,
+          );
+        },
+        maxRetries: 3,
       );
       return Right(result);
+    } on UnauthorizedException catch (e) {
+      // Handle 401 - trigger force logout
+      AuthInterceptors.handleError(e);
+      return Left(UnauthorizedFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(message: e.message));
     } catch (e) {
       return const Left(ServerFailure(message: 'حدث خطأ غير متوقع'));
     }

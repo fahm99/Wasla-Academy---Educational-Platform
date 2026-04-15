@@ -30,6 +30,7 @@ class _CoursesPageState extends State<CoursesPage>
   Timer? _debounceTimer;
 
   String _selectedCategory = 'الكل';
+  bool _hasLoadedInitialData = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -47,10 +48,25 @@ class _CoursesPageState extends State<CoursesPage>
   @override
   void initState() {
     super.initState();
-    // Load data in initState for first time
+    // Load data in initState for first time only
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CoursesBloc>().add(LoadAllCoursesEvent());
+      _loadInitialData();
     });
+  }
+
+  void _loadInitialData() {
+    // Prevent duplicate loading
+    if (_hasLoadedInitialData) return;
+    _hasLoadedInitialData = true;
+    
+    // Check if data already exists in bloc state
+    final coursesState = context.read<CoursesBloc>().state;
+    if (coursesState is CoursesLoaded && coursesState.courses.isNotEmpty) {
+      // Data already loaded, don't reload
+      return;
+    }
+    
+    context.read<CoursesBloc>().add(LoadAllCoursesEvent());
   }
 
   @override
