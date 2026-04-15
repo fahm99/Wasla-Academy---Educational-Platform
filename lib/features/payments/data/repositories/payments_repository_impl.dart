@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/repositories/payments_repository.dart';
 import '../datasources/payments_remote_datasource.dart';
 import '../models/payment_model.dart';
@@ -38,15 +39,23 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
     required double amount,
   }) async {
     try {
-      final payment = await remoteDataSource.submitPayment(
-        courseId: courseId,
-        receiptImage: receiptImage,
-        transactionReference: transactionReference,
-        paymentMethod: paymentMethod,
-        amount: amount,
+      // Use retry for payment submission
+      final payment = await ApiClient.executeWithRetry(
+        request: () async {
+          return await remoteDataSource.submitPayment(
+            courseId: courseId,
+            receiptImage: receiptImage,
+            transactionReference: transactionReference,
+            paymentMethod: paymentMethod,
+            amount: amount,
+          );
+        },
+        maxRetries: 3,
       );
       return Right(payment);
     } on UnauthorizedException catch (e) {
+      // Handle 401 - trigger force logout
+      AuthInterceptors.handleError(e);
       return Left(UnauthorizedFailure(message: e.message));
     } on FileException catch (e) {
       return Left(FileFailure(message: e.message));

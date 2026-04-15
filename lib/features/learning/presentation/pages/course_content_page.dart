@@ -25,6 +25,8 @@ class CourseContentPage extends StatefulWidget {
 }
 
 class _CourseContentPageState extends State<CourseContentPage> {
+  bool _hasLoadedData = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +36,10 @@ class _CourseContentPageState extends State<CourseContentPage> {
   }
 
   void _loadData() {
+    // Prevent over-fetching: only load once
+    if (_hasLoadedData) return;
+    _hasLoadedData = true;
+    
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
       // تحميل الدروس
