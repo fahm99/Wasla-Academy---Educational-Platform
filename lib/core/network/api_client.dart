@@ -1,6 +1,22 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/error_handler.dart';
+
+/// مدير الجلسات - للتعامل مع 401
+class AuthInterceptors {
+  static Function(String reason)? onUnauthorized;
+  
+  /// التحقق من الخطأ和处理
+  static void handleError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    if (errorStr.contains('unauthorized') || 
+        errorStr.contains('401') || 
+        errorStr.contains('jwt')) {
+      onUnauthorized?.call('انتهت صلاحية الجلسة');
+    }
+  }
+}
 
 /// عميل API للتعامل مع Supabase
 class ApiClient {
