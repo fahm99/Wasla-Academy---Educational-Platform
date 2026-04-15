@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/user_model.dart';
@@ -28,11 +29,17 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      final user = await remoteDataSource.signUp(
-        email: email,
-        password: password,
-        name: name,
-        phone: phone,
+      // Use retry for sign up
+      final user = await ApiClient.executeWithRetry(
+        request: () async {
+          return await remoteDataSource.signUp(
+            email: email,
+            password: password,
+            name: name,
+            phone: phone,
+          );
+        },
+        maxRetries: 3,
       );
       return Right(user);
     } on AuthException catch (e) {
@@ -56,9 +63,15 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      final user = await remoteDataSource.signIn(
-        email: email,
-        password: password,
+      // Use retry for sign in
+      final user = await ApiClient.executeWithRetry(
+        request: () async {
+          return await remoteDataSource.signIn(
+            email: email,
+            password: password,
+          );
+        },
+        maxRetries: 3,
       );
       return Right(user);
     } on AuthException catch (e) {
@@ -107,6 +120,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final user = await remoteDataSource.getCurrentUser();
       return Right(user);
+    } on UnauthorizedException catch (e) {
+      // Handle 401 - trigger force logout
+      AuthInterceptors.handleError(e);
+      return Left(UnauthorizedFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
     } catch (e) {

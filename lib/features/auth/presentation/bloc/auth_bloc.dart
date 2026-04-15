@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/models/user_model.dart';
@@ -21,6 +22,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GetCurrentUserUseCase getCurrentUserUseCase;
   final LocalStorageService localStorageService;
   final SessionManager sessionManager;
+  
+  // Stream subscription for auth state changes - must be cancelled on dispose
+  StreamSubscription? _authStateSubscription;
 
   AuthBloc({
     required this.signInUseCase,
@@ -50,9 +54,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     };
 
     // الاستماع لتغييرات حالة المصادقة
-    sessionManager.authStateChanges.listen((authState) {
+    _authStateSubscription = sessionManager.authStateChanges.listen((authState) {
       sessionManager.handleAuthStateChange(authState);
     });
+  }
+  
+  @override
+  Future<void> close() {
+    // Cancel stream subscription to prevent memory leak
+    _authStateSubscription?.cancel();
+    return super.close();
   }
 
   Future<void> _onSignInRequested(
@@ -217,22 +228,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     ForceLogout event,
     Emitter<AuthState> emit,
   ) async {
-    // إيقاف مراقبة الجلسة
-    sessionManager.stopSessionMonitoring();
+    try {
+      // إيقاف مراقبة الجلسة
+      sessionManager.stopSessionMonitoring();
 
-    // حذف البيانات المحلية
-    await localStorageService.clearUser();
+      // حذف البيانات المحلية
+      await localStorageService.clearUser();
 
-    // تسجيل الخروج من Supabase
-    await signOutUseCase();
+      // تسجيل الخروج من Supabase (ignore errors - local cleanup is more important)
+      await signOutUseCase();
+    } catch (e) {
+      // تجاهل أخطاء session cleanup - الأهم هو تنظيف الحالة المحلية
+    } finally {
+      // عرض رسالة السبب إذا كان موجوداً
+      if (event.reason != null) {
+        emit(AuthError(message: event.reason!));
+        // الانتقال إلى حالة غير مصادق بعد ثانية
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
 
-    // عرض رسالة السبب إذا كان موجوداً
-    if (event.reason != null) {
-      emit(AuthError(message: event.reason!));
-      // الانتقال إلى حالة غير مصادق بعد ثانية
-      await Future.delayed(const Duration(seconds: 1));
+      emit(Unauthenticated());
     }
-
-    emit(Unauthenticated());
   }
 }
