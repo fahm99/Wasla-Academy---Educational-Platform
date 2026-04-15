@@ -32,13 +32,20 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     LoadProfileEvent event,
     Emitter<ProfileState> emit,
   ) async {
-    emit(ProfileLoading());
+    // Don't emit loading if already loaded (prevent flicker)
+    if (state is! ProfileLoaded) {
+      emit(ProfileLoading());
+    }
 
     final result = await getProfileUseCase(event.userId);
 
     result.fold(
-      (failure) => emit(ProfileError(failure.message)),
-      (profile) => emit(ProfileLoaded(profile)),
+      (failure) {
+        if (!emit.isDone) emit(ProfileError(failure.message));
+      },
+      (profile) {
+        if (!emit.isDone) emit(ProfileLoaded(profile));
+      },
     );
   }
 
@@ -56,8 +63,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     );
 
     result.fold(
-      (failure) => emit(ProfileError(failure.message)),
-      (profile) => emit(ProfileUpdated(profile)),
+      (failure) {
+        if (!emit.isDone) emit(ProfileError(failure.message));
+      },
+      (profile) {
+        if (!emit.isDone) emit(ProfileUpdated(profile));
+      },
     );
   }
 
@@ -70,8 +81,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final result = await uploadAvatarUseCase(event.userId, event.imageFile);
 
     result.fold(
-      (failure) => emit(ProfileError(failure.message)),
-      (imageUrl) => emit(AvatarUploaded(imageUrl)),
+      (failure) {
+        if (!emit.isDone) emit(ProfileError(failure.message));
+      },
+      (imageUrl) {
+        if (!emit.isDone) emit(AvatarUploaded(imageUrl));
+      },
     );
   }
 
@@ -84,8 +99,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final result = await deleteAvatarUseCase(event.userId);
 
     result.fold(
-      (failure) => emit(ProfileError(failure.message)),
-      (_) => emit(AvatarDeleted()),
+      (failure) {
+        if (!emit.isDone) emit(ProfileError(failure.message));
+      },
+      (_) {
+        if (!emit.isDone) emit(AvatarDeleted());
+      },
     );
   }
 }
